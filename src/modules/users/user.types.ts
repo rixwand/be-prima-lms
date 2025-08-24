@@ -1,7 +1,14 @@
-import { InferType } from "yup";
-import { registerSchema } from "../auth/auth.validation";
+import { IUserRegister } from "../auth/auth.types";
 
-export interface ICreateUserDTO extends InferType<typeof registerSchema> {}
-export interface IUserRepo extends Omit<ICreateUserDTO, "password"> {
+type EUserStatus = "NOT_VERIFIED" | "ACTIVE" | "DISABLED";
+
+export interface IUserCreateEntity extends Omit<IUserRegister, "password"> {
   passwordHash: string;
+}
+
+export interface IUserGetEntity extends IUserCreateEntity {
+  id: number;
+  profilePict: string;
+  passwordHash: string;
+  status: EUserStatus;
 }

@@ -1,5 +1,6 @@
 import { InferType, Schema, ValidationError } from "yup";
 import { ApiError } from "./http";
+import { formatYupError } from "./error";
 
 export const validate = async <T>(
   schema: Schema<T>,
@@ -13,6 +14,7 @@ export const validate = async <T>(
     return res;
   } catch (error) {
     const err = error as ValidationError;
-    throw new ApiError(400, err.message);
+    const message = formatYupError(err);
+    throw new ApiError(400, JSON.stringify(message));
   }
 };

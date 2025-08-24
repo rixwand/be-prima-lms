@@ -4,9 +4,11 @@ CREATE TYPE "public"."UserStatus" AS ENUM ('NOT_VERIFIED', 'ACTIVE', 'DISABLED')
 -- CreateTable
 CREATE TABLE "public"."users" (
     "id" SERIAL NOT NULL,
+    "full_name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "username" TEXT NOT NULL,
-    "password_has" TEXT NOT NULL,
+    "profile_picture" TEXT NOT NULL DEFAULT 'user.jpg',
+    "password_hash" TEXT NOT NULL,
     "status" "public"."UserStatus" NOT NULL DEFAULT 'NOT_VERIFIED',
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")

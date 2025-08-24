@@ -1,12 +1,36 @@
-import { Request, Response } from "express";
-import { asyncHandler } from "../../common/utils/http";
+import {
+  ApiError,
+  AsyncRequestHandler,
+  asyncHandler,
+} from "../../common/utils/http";
 import { validate } from "../../common/utils/validation";
-import { registerSchema } from "./auth.validation";
+import { loginSchema, registerSchema } from "./auth.validation";
 import { authServices } from "./auth.service";
-const register = async (req: Request, res: Response) => {
+import { cookieOpt, refreshCookieName } from "../../common/utils/jwt";
+
+const register: AsyncRequestHandler = async (req, res) => {
   const data = await validate(registerSchema, req.body);
   const user = await authServices.register(data);
-  return res.status(200).json({ data: user });
+  return res.status(200).json({ data: { user } });
 };
 
-export const AuthController = { register: asyncHandler(register) };
+const login: AsyncRequestHandler = async (req, res) => {
+  const data = await validate(loginSchema, req.body);
+  const { accessToken, refreshToken } = await authServices.login(data);
+  res.cookie(refreshCookieName, refreshToken, cookieOpt);
+  res.status(200).json({ data: { accessToken } });
+};
+
+const refresh: AsyncRequestHandler = async (req, res) => {
+  const token = req.cookies[refreshCookieName] as string | undefined;
+  if (!token) throw new ApiError(401, "Missing refresh cookie");
+  const { newAccessToken, newRefreshToken } = await authServices.refresh(token);
+  res.cookie(refreshCookieName, newRefreshToken, cookieOpt);
+  res.status(200).json({ data: { accessToken: newAccessToken } });
+};
+
+export const AuthController = {
+  register: asyncHandler(register),
+  login: asyncHandler(login),
+  refresh: asyncHandler(refresh),
+};

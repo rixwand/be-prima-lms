@@ -1,3 +1,5 @@
+import { NextFunction, Request, Response } from "express";
+
 export class ApiError extends Error {
   public status: number;
   constructor(status: number, message: string) {
@@ -6,8 +8,12 @@ export class ApiError extends Error {
   }
 }
 
-type AsyncFunction = (req: any, res: any, next: any) => Promise<any>;
-export function asyncHandler(fn: AsyncFunction) {
+export type AsyncRequestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<any>;
+export function asyncHandler(fn: AsyncRequestHandler) {
   return function (req: any, res: any, next: any) {
     fn(req, res, next).catch(next);
   };
