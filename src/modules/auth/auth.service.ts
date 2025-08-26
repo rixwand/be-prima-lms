@@ -1,25 +1,20 @@
 import { comparePassword, hashPassword } from "../../common/utils/hash";
 import { ApiError } from "../../common/utils/http";
-import {
-  newJti,
-  signAccessToken,
-  signRefreshToken,
-  verifyRefreshToken,
-} from "../../common/utils/jwt";
+import { newJti, signAccessToken, signRefreshToken, verifyRefreshToken } from "../../common/utils/jwt";
 import { RefreshSessionRepo } from "../session/session.repository";
 import { SessionService } from "../session/session.service";
-import { UserRepo } from "../users/user.repository";
-import { IUserRegister, IUserLogin } from "./auth.types";
+import { userRepo } from "../users/user.repository";
+import { IUserLogin, IUserRegister } from "./auth.types";
 
 export const authServices = {
   async register({ password, ...user }: IUserRegister) {
     const passwordHash = await hashPassword(password);
-    const res = await UserRepo.create({ ...user, passwordHash });
+    const res = await userRepo.create({ ...user, passwordHash });
     return res;
   },
 
   async login({ email, password }: IUserLogin) {
-    const user = await UserRepo.findByEmail(email);
+    const user = await userRepo.findByEmail(email);
     if (!user) throw new ApiError(401, "Invalid email or password");
     const passwordMatch = await comparePassword(password, user.passwordHash);
     if (!passwordMatch) throw new ApiError(401, "Invalid email or password");

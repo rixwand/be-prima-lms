@@ -1,20 +1,15 @@
-import { mockUserRepo } from "../mocks/userRepo.mock";
+/* prettier-ignore-start */
 import { mockSessionRepo } from "../mocks/sessionRepo.mock";
+import { mockUserRepo } from "../mocks/userRepo.mock";
 const getSessionRepoSpies = mockSessionRepo();
 const getUserRepoSpies = mockUserRepo();
+/* prettier-ignore-end */
+import { RefreshSession } from "@prisma/client";
 import supertest from "supertest";
 import web from "../../src/app/web";
-import { IUserGetEntity } from "../../src/modules/users/user.types";
 import { hashPassword } from "../../src/common/utils/hash";
-// import { UserRepo } from "../../src/modules/users/user.repository";
-
-// const createMock = jest
-//   .spyOn(UserRepo, "create")
-//   .mockImplementation(async (entity: IUserCreateEntity) => ({
-//     username: "risu",
-//     fullName: "Arisu",
-//     email: "risu@mail.com",
-//   }));
+import { newJti } from "../../src/common/utils/jwt";
+import { IUserGetEntity } from "../../src/modules/users/user.types";
 
 afterEach(() => {
   jest.clearAllMocks();
@@ -88,5 +83,58 @@ describe("POST /api/auth/login", () => {
         expiresAt: expect.any(Date),
       })
     );
+  });
+
+  test("wrong credential", async () => {
+    const { findByEmail } = getUserRepoSpies();
+    const { create } = getSessionRepoSpies();
+    findByEmail.mockResolvedValue({
+      ...getUser,
+      passwordHash: await hashPassword("test1234"),
+    } as IUserGetEntity);
+    const res = await supertest(web).post("/api/auth/login").send({
+      email: getUser.email,
+      password: "test4321",
+    });
+    console.log("login error: ", res.body);
+    expect(res.status).toBe(401);
+    expect(res.body).toHaveProperty("error");
+    expect(findByEmail).toHaveBeenCalledWith(getUser.email);
+    expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/auth/refresh", () => {
+  it("should can get a new access token", async () => {
+    const jti = newJti();
+    const { findByEmail } = getUserRepoSpies();
+    const { get: getSession } = getSessionRepoSpies();
+    getSession.mockResolvedValue({
+      userId: 12,
+      jti,
+      revokedAt: null,
+      replacedByJti: null,
+      expiresAt: new Date(Date.now() + 10 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as RefreshSession);
+    findByEmail.mockResolvedValue({
+      ...getUser,
+      passwordHash: await hashPassword("test1234"),
+    } as IUserGetEntity);
+    const login = await supertest(web).post("/api/auth/login").send({
+      email: getUser.email,
+      password: "test1234",
+    });
+    console.log("login status: ", login.status, " res body: ", login.body);
+    const cookie = login.headers["set-cookie"];
+    if (!cookie) throw new Error("cookie not found");
+    const res = await supertest(web).post("/api/auth/refresh").set("Cookie", cookie);
+    console.log(res.body);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty("accessToken");
+    const newCookie = res.headers["set-cookie"];
+    if (!newCookie) throw new Error("new cookie not found");
+    expect(newCookie).not.toBe(cookie);
   });
 });

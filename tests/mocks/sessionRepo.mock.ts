@@ -6,9 +6,7 @@ type TRefreshSessionRepo = {
 };
 export const mockSessionRepo = () => {
   jest.mock("../../src/modules/session/session.repository", () => {
-    const [get, create, rotate, revokeMany] = Array.from({ length: 4 }, () =>
-      jest.fn()
-    );
+    const [get, create, rotate, revokeMany] = Array.from({ length: 4 }, () => jest.fn());
     const RefreshSessionRepo = { get, create, rotate, revokeMany };
     return {
       RefreshSessionRepo,
@@ -16,7 +14,5 @@ export const mockSessionRepo = () => {
       __esmodule: true,
     };
   });
-  return () =>
-    jest.requireMock("../../src/modules/session/session.repository")
-      .__mock__ as TRefreshSessionRepo;
+  return () => jest.requireMock("../../src/modules/session/session.repository").__mock__ as TRefreshSessionRepo;
 };
