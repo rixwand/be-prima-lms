@@ -24,12 +24,12 @@ async function findById<S extends Prisma.UserSelect>(
 
 // Implementation (note the union type matches the overload shapes)
 async function findById(id: number, opts?: any) {
-  if (!opts && opts.select)
+  if (opts && opts.select)
     return prisma.user.findUnique({
       where: { id },
       select: opts.select,
     });
-  if (!opts && opts.include)
+  if (opts && opts.include)
     return prisma.user.findUnique({
       where: { id },
       include: opts.include,

@@ -43,7 +43,7 @@ export const authServices = {
     }
 
     const jti = newJti();
-    SessionService.rotate({
+    await SessionService.rotate({
       newJti: jti,
       oldJti: payload.jti,
       userId: session.userId,
