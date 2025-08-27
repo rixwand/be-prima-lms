@@ -1,10 +1,44 @@
-import { Prisma, User } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/libs/prisma";
 import { ApiError } from "../../common/utils/http";
 import { IUserCreateEntity, IUserGetEntity } from "./user.types";
+
+type IncludeArg<I extends Prisma.UserInclude> = { include: I; select?: never };
+type SelectArg<S extends Prisma.UserSelect> = { select: S; include?: never };
+
 const isUserEmailExist = (email: string) => {
   return prisma.user.count({ where: { email } });
 };
+
+async function findById(id: number): Promise<Prisma.UserGetPayload<{}> | null>;
+
+async function findById<I extends Prisma.UserInclude>(
+  id: number,
+  opts: IncludeArg<I>
+): Promise<Prisma.UserGetPayload<{ include: I }> | null>;
+
+async function findById<S extends Prisma.UserSelect>(
+  id: number,
+  opts: SelectArg<S>
+): Promise<Prisma.UserGetPayload<{ select: S }> | null>;
+
+// Implementation (note the union type matches the overload shapes)
+async function findById(id: number, opts?: any) {
+  if (!opts && opts.select)
+    return prisma.user.findUnique({
+      where: { id },
+      select: opts.select,
+    });
+  if (!opts && opts.include)
+    return prisma.user.findUnique({
+      where: { id },
+      include: opts.include,
+    });
+  else
+    return prisma.user.findUnique({
+      where: { id },
+    });
+}
 
 export const userRepo = {
   async create(data: IUserCreateEntity) {
@@ -25,13 +59,5 @@ export const userRepo = {
     return prisma.user.findUnique({ where: { email } });
   },
 
-  async findById<T extends Prisma.UserSelect | null | undefined>(
-    id: number,
-    select?: T
-  ): Promise<T extends Prisma.UserSelect ? Prisma.UserGetPayload<{ select: T }> : User | null> {
-    return prisma.user.findUnique({
-      where: { id },
-      select: select as any, // TS needs this cast
-    }) as any;
-  },
+  findById: findById,
 };

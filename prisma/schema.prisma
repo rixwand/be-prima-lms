@@ -41,9 +41,10 @@ model User {
   username      String
   profilePict   String @map("profile_picture") @default("user.jpg")
   passwordHash  String @map("password_hash")
+  roleId        Int
   status        UserStatus @default(NOT_VERIFIED)
 
-  roles         UserRole[]
+  roles         Role @relation(fields: [roleId], references: [id])
   session       RefreshSession[]
 
   @@map("users")
@@ -53,11 +54,12 @@ model Role {
   id            Int @id @default(autoincrement())
   name          String @unique
   
-  user          UserRole[]
+  user          User[]
   perms    RolePermission[]
 
   @@map("roles")
 }
+
 
 model Permission {
   id            Int @id @default(autoincrement())
@@ -69,17 +71,6 @@ model Permission {
 
   @@unique([scope, action, resource])      
   @@map("permissions")
-}
-
-model UserRole {
-  userId        Int
-  roleId        Int
-
-  user          User @relation(fields: [userId], references: [id])
-  role          Role @relation(fields: [roleId], references: [id])
-
-  @@id([userId, roleId])
-  @@map("user_roles")
 }
 
 model RolePermission {

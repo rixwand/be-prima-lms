@@ -1,8 +1,10 @@
 /* prettier-ignore-start */
+import { mockRoleRepo } from "../mocks/roleRepo.mock";
 import { mockSessionRepo } from "../mocks/sessionRepo.mock";
 import { mockUserRepo } from "../mocks/userRepo.mock";
 const getSessionRepoSpies = mockSessionRepo();
 const getUserRepoSpies = mockUserRepo();
+const getRoleRepoSpies = mockRoleRepo();
 /* prettier-ignore-end */
 import { RefreshSession } from "@prisma/client";
 import supertest from "supertest";
@@ -22,19 +24,27 @@ const userData = {
   email: "risu@mail.com",
 };
 
+const roleData = {
+  id: 1,
+  name: "member",
+};
+
 const getUser: Omit<IUserGetEntity, "passwordHash"> = {
   id: 2,
   email: "test@mail.com",
   fullName: "Test user",
   username: "test",
   profilePict: "user.jpg",
+  roleId: 1,
   status: "NOT_VERIFIED",
 };
 
 describe("POST /api/auth/register", () => {
   it("should can register new user", async () => {
     const { create } = getUserRepoSpies();
+    const { findByName } = getRoleRepoSpies();
     create.mockResolvedValue(userData);
+    findByName.mockResolvedValue(roleData);
     const res = await supertest(web)
       .post("/api/auth/register")
       .send({
@@ -42,9 +52,9 @@ describe("POST /api/auth/register", () => {
         password: "test1234",
       });
     console.log(res.body);
-    expect(res.status).toBe(200);
-
+    expect(findByName).toHaveBeenCalledWith("member");
     expect(create).toHaveBeenCalledWith(expect.objectContaining(userData));
+    expect(res.status).toBe(200);
   });
 
   test("validation error", async () => {

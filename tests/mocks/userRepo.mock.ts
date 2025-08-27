@@ -4,13 +4,13 @@ type UserRepoMock = {
 };
 export const mockUserRepo = () => {
   jest.mock("../../src/modules/users/user.repository", () => {
-    const [create, findByEmail] = Array.from({ length: 2 }, () => jest.fn());
+    const [create, findByEmail, findById] = Array.from({ length: 3 }, () => jest.fn());
+    const userRepo = { create, findByEmail };
     return {
-      UserRepo: { create, findByEmail },
-      __mocks__: { create, findByEmail },
+      userRepo,
+      __mocks__: userRepo,
       __esModule: true,
     };
   });
-  return (): UserRepoMock =>
-    jest.requireMock("../../src/modules/users/user.repository").__mocks__;
+  return (): UserRepoMock => jest.requireMock("../../src/modules/users/user.repository").__mocks__;
 };

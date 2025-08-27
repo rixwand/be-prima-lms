@@ -1,6 +1,7 @@
 import { comparePassword, hashPassword } from "../../common/utils/hash";
 import { ApiError } from "../../common/utils/http";
 import { newJti, signAccessToken, signRefreshToken, verifyRefreshToken } from "../../common/utils/jwt";
+import { roleRepo } from "../role/role.repository";
 import { RefreshSessionRepo } from "../session/session.repository";
 import { SessionService } from "../session/session.service";
 import { userRepo } from "../users/user.repository";
@@ -9,7 +10,9 @@ import { IUserLogin, IUserRegister } from "./auth.types";
 export const authServices = {
   async register({ password, ...user }: IUserRegister) {
     const passwordHash = await hashPassword(password);
-    const res = await userRepo.create({ ...user, passwordHash });
+    const role = await roleRepo.findByName("member");
+    if (!role) throw new ApiError(500, "Role not found");
+    const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
     return res;
   },
 
