@@ -1,19 +1,30 @@
-import { comparePassword, hashPassword } from "../../common/utils/hash";
+import { renderMail, sendMail } from "../../common/libs/mail/mailer";
+import { ACTIVATION_TOKEN_TTL_HOURS, CLIENT_URL } from "../../common/utils/env";
+import { comparePassword, hashPassword, randHex, sha256 } from "../../common/utils/hash";
 import { ApiError } from "../../common/utils/http";
 import { newJti, signAccessToken, signRefreshToken, verifyRefreshToken } from "../../common/utils/jwt";
 import { roleRepo } from "../role/role.repository";
 import { RefreshSessionRepo } from "../session/session.repository";
 import { SessionService } from "../session/session.service";
 import { userRepo } from "../users/user.repository";
-import { IUserLogin, IUserRegister } from "./auth.types";
+import { authRepo } from "./auth.repository";
+import { ISendActivationMail, IUserLogin, IUserRegister } from "./auth.types";
+
+// TODO: Implement resend activation link
 
 export const authServices = {
   async register({ password, ...user }: IUserRegister) {
     const passwordHash = await hashPassword(password);
     const role = await roleRepo.findByName("member");
     if (!role) throw new ApiError(500, "Role not found");
-    const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
-    return res;
+    try {
+      const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
+      await sendActivationEmail({ userId: res.id, fullName: res.fullName, email: res.email });
+      return res;
+    } catch (e) {
+      const error = e as Error;
+      throw new ApiError(500, error.message);
+    }
   },
 
   async login({ email, password }: IUserLogin) {
@@ -53,4 +64,45 @@ export const authServices = {
 
     return { newAccessToken, newRefreshToken };
   },
+
+  async activateAccount(code: string) {
+    const [selector, validator] = code.split(".");
+    if (!selector || !validator) throw new ApiError(400, "Invalid activation link");
+
+    const token = await authRepo.findBySelector(selector);
+    if (!token) throw new ApiError(400, "Invalid activation link");
+    if (token.usedAt) throw new ApiError(409, "Activation link already used");
+    if (token.expiresAt < new Date()) throw new ApiError(410, "Activation link expired");
+
+    if (sha256(validator) !== token.tokenHash) throw new ApiError(400, "Invalid activation link");
+
+    await Promise.all([
+      authRepo.markUsed(token.id),
+      userRepo.actvateById(token.userId),
+      authRepo.revokeOtherTokens(token.userId, token.id),
+    ]);
+  },
 };
+
+async function sendActivationEmail({ userId, fullName, email }: ISendActivationMail) {
+  const selector = randHex(8);
+  const validator = randHex(32);
+  const expiresAt = new Date(Date.now() + Number(ACTIVATION_TOKEN_TTL_HOURS) * 60 * 60 * 1000);
+
+  await authRepo.createActivationToken({ userId, selector, validator, expiresAt });
+
+  const link = `${CLIENT_URL}/auth/activation?code=${selector}.${validator}`;
+  try {
+    const html = await renderMail("activation-email", { activation_link: link, fullName, client_url: CLIENT_URL });
+    await sendMail({
+      from: "acara-test@zohomail.com",
+      to: email,
+      subject: "PRIMA User Activation",
+      html,
+    });
+  } catch (e) {
+    const error = e as Error;
+    console.log("error: ", error.message);
+    throw new ApiError(500, error.message);
+  }
+}

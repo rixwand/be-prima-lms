@@ -2,7 +2,7 @@ import { ApiError, AsyncRequestHandler, asyncHandler } from "../../common/utils/
 import { cookieOpt, refreshCookieName } from "../../common/utils/jwt";
 import { validate } from "../../common/utils/validation";
 import { authServices } from "./auth.service";
-import { loginSchema, registerSchema } from "./auth.validation";
+import { activationSchema, loginSchema, registerSchema } from "./auth.validation";
 
 const register: AsyncRequestHandler = async (req, res) => {
   const data = await validate(registerSchema, req.body);
@@ -26,8 +26,15 @@ const refresh: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { accessToken: newAccessToken } });
 };
 
+const activation: AsyncRequestHandler = async (req, res) => {
+  const { code } = await validate(activationSchema, req.body);
+  await authServices.activateAccount(code);
+  res.status(200).json({ data: { message: "Account activated. You can login now" } });
+};
+
 export const authController = {
   register: asyncHandler(register),
   login: asyncHandler(login),
   refresh: asyncHandler(refresh),
+  activation: asyncHandler(activation),
 };

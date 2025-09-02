@@ -12,8 +12,7 @@ export const registerSchema = yup.object({
 
 export const loginSchema = yup.object({
   email: yup.string().email().required(),
-  password: yup
-    .string()
-    .required()
-    .min(8, "Password must be at least 8 characters long"),
+  password: yup.string().required().min(8, "Password must be at least 8 characters long"),
 });
+
+export const activationSchema = yup.object({ code: yup.string().required() });

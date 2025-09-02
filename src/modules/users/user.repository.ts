@@ -47,6 +47,7 @@ export const userRepo = {
     const res = await prisma.user.create({
       data,
       select: {
+        id: true,
         username: true,
         email: true,
         fullName: true,
@@ -60,4 +61,11 @@ export const userRepo = {
   },
 
   findById: findById,
+
+  async actvateById(id: number) {
+    return prisma.user.update({
+      where: { id },
+      data: { status: "ACTIVE" },
+    });
+  },
 };
