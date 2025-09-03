@@ -18,7 +18,6 @@ const login: AsyncRequestHandler = async (req, res) => {
 };
 
 const refresh: AsyncRequestHandler = async (req, res) => {
-  if (!req.cookies) throw new ApiError(401, "Missing refresh cookie");
   const token = req.cookies[refreshCookieName] as string | undefined;
   if (!token) throw new ApiError(401, "Missing refresh cookie");
   const { newAccessToken, newRefreshToken } = await authServices.refresh(token);
@@ -32,9 +31,25 @@ const activation: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { message: "Account activated. You can login now" } });
 };
 
+const logout: AsyncRequestHandler = async (req, res) => {
+  const refToken = req.cookies[refreshCookieName];
+  await authServices.logout(refToken);
+  res.clearCookie(refreshCookieName, cookieOpt);
+  res.status(200).json({ data: { message: "Logout success" } });
+};
+
+const logoutAll: AsyncRequestHandler = async (req, res) => {
+  const refToken = req.cookies[refreshCookieName];
+  if (!refToken) throw new ApiError(401, "Missing refresh cookie");
+  await authServices.logoutAll(refToken);
+  res.status(200).json({ data: { message: "Logout from all devices" } });
+};
+
 export const authController = {
   register: asyncHandler(register),
   login: asyncHandler(login),
   refresh: asyncHandler(refresh),
   activation: asyncHandler(activation),
+  logout: asyncHandler(logout),
+  logoutAll: asyncHandler(logoutAll),
 };

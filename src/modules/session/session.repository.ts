@@ -1,6 +1,6 @@
 import { prisma } from "../../common/libs/prisma";
 import { IRSCreateEntity, IRSRotateEntity } from "./session.types";
-export const RefreshSessionRepo = {
+export const sessionRepo = {
   async create(data: IRSCreateEntity) {
     await prisma.refreshSession.create({ data });
   },
@@ -26,6 +26,24 @@ export const RefreshSessionRepo = {
           replacedByJti: newJti,
         },
       });
+    });
+  },
+
+  async revokeByJti(jti: string) {
+    return prisma.refreshSession.update({
+      where: { jti },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  },
+
+  async revokeAllByUserId(userId: number) {
+    return prisma.refreshSession.updateMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: {
+        revokedAt: new Date(),
+      },
     });
   },
 
