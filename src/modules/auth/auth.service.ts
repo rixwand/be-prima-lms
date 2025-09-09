@@ -17,8 +17,8 @@ export const authServices = {
     const passwordHash = await hashPassword(password);
     const role = await roleRepo.findByName("member");
     if (!role) throw new ApiError(500, "Role not found");
+    const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
     try {
-      const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
       await sendActivationEmail({ userId: res.id, fullName: res.fullName, email: res.email });
       return res;
     } catch (e) {

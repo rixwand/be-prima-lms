@@ -1,14 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/libs/prisma";
 import { ApiError } from "../../common/utils/http";
-import { IUserCreateEntity, IUserGetEntity } from "./user.types";
+import { IUserCreateEntity, IUserGetEntity, IUserUpdate } from "./user.types";
 
 type IncludeArg<I extends Prisma.UserInclude> = { include: I; select?: never };
 type SelectArg<S extends Prisma.UserSelect> = { select: S; include?: never };
-
-const isUserEmailExist = (email: string) => {
-  return prisma.user.count({ where: { email } });
-};
 
 async function findById(id: number): Promise<Prisma.UserGetPayload<{}> | null>;
 
@@ -40,6 +36,10 @@ async function findById(id: number, opts?: any) {
     });
 }
 
+const isUserEmailExist = (email: string) => {
+  return prisma.user.count({ where: { email } });
+};
+
 export const userRepo = {
   async create(data: IUserCreateEntity) {
     const isDupl = await isUserEmailExist(data.email);
@@ -66,6 +66,28 @@ export const userRepo = {
     return prisma.user.update({
       where: { id },
       data: { status: "ACTIVE" },
+    });
+  },
+
+  async updateById<S extends Prisma.UserSelect>(
+    id: number,
+    data: IUserUpdate,
+    select: S
+  ): Promise<Prisma.UserGetPayload<{ select: S }>> {
+    return prisma.user.update({
+      where: { id },
+      data: {
+        ...(data.fullName ? { fullName: data.fullName } : {}),
+        ...(data.profilePict ? { profilePict: data.profilePict } : {}),
+      },
+      select,
+    });
+  },
+
+  async updatePassword(id: number, passwordHash: string) {
+    return prisma.user.update({
+      where: { id },
+      data: { passwordHash },
     });
   },
 };

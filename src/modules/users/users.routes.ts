@@ -6,5 +6,7 @@ const userRoutes = Router();
 
 userRoutes.use(authMiddleware);
 userRoutes.get("/me", userController.get);
+userRoutes.patch("/me", userController.update);
+userRoutes.patch("/update-password", userController.updatePassword);
 
 export default userRoutes;
