@@ -90,4 +90,16 @@ export const userRepo = {
       data: { passwordHash },
     });
   },
+
+  async list(page: number, limit: number) {
+    return prisma.user.findMany({
+      take: limit,
+      skip: (page - 1) * limit,
+      // orderBy: {} TODO: Order By created At Descending after migration
+    });
+  },
+
+  async count() {
+    return prisma.user.count();
+  },
 };

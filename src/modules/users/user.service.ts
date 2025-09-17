@@ -30,4 +30,17 @@ export const userService = {
     const newPasswordHash = await hashPassword(data.newPassword);
     await userRepo.updatePassword(id, newPasswordHash);
   },
+
+  async list(page: number = 1, limit: number = 10) {
+    const [users, total] = await Promise.all([userRepo.list(page, limit), userRepo.count()]);
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPage: Math.ceil(total / limit),
+      },
+    };
+  },
 };

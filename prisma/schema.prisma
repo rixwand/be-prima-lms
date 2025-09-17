@@ -14,6 +14,18 @@ enum UserStatus {
   DISABLED
 }
 
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum BlockType {
+  RICH_TEXT
+  VIDEO
+  FILE
+  EMBED
+}
+
 model RefreshSession {
   jti           String @id
   userId        Int
@@ -60,10 +72,12 @@ model User {
   passwordHash  String @map("password_hash")
   roleId        Int
   status        UserStatus @default(NOT_VERIFIED)
+  createdAt     DateTime @default(now())
 
   roles         Role @relation(fields: [roleId], references: [id])
   session       RefreshSession[]
   activationToken ActivationToken[]
+  courseOwned Course[] @relation("CourseOwner")
 
   @@map("users")
 }
@@ -100,4 +114,68 @@ model RolePermission {
 
   @@id([roleId, permissionId])
   @@map("role_permissions")
+}
+
+model Course {
+  id            Int @id @default(autoincrement())
+  title         String 
+  slug          String @unique
+  status        CourseStatus @default(DRAFT)
+  ownerId       Int
+  createdAt     DateTime @default(now())
+
+  owner         User  @relation("CourseOwner", fields: [ownerId], references: [id])
+  sections      CourseSection[]
+
+  @@map("courses")
+}
+
+model CourseSection {
+  id            Int @id @default(autoincrement())
+  courseId      Int
+  title         String
+  position      Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  course        Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+  @@unique([courseId, position])
+  @@map("course_sections")
+}
+
+model Lesson {
+  id          Int @id @default(autoincrement())
+  sectionId   Int
+  slug        String
+  title       String
+  summary     String?
+  position    Int
+  durationSec Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  blocks      LessonBlock[]
+  
+  @@unique([sectionId, position])
+  @@unique([sectionId, slug])
+
+  @@map("lessons")
+}
+
+model LessonBlock {
+  id          Int @id @default(autoincrement())
+  lessonId    Int 
+  position    Int
+  type        BlockType
+  textJson    Json?  @map("text_json")
+  url         String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  lesson      Lesson @relation(fields: [lessonId],references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, position])
+  @@map("lesson_blocks")
 }

@@ -3,6 +3,11 @@ declare global {
   namespace Express {
     interface Request {
       user?: RequestUser;
+      authz?: {
+        action: string;
+        resource: string;
+        scopes: string[];
+      };
     }
   }
 }

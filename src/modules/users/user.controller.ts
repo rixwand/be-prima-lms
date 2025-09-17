@@ -23,8 +23,16 @@ const updatePassword: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { message: "Password successfully changed" } });
 };
 
+const list: AsyncRequestHandler = async (req, res) => {
+  const page = Number(req.params.page) || 1;
+  const limit = Number(req.params.page) || 10;
+  const result = await userService.list(page, limit);
+  return res.status(200).json(result);
+};
+
 export const userController = {
   get: asyncHandler(get),
   update: asyncHandler(update),
   updatePassword: asyncHandler(updatePassword),
+  list: asyncHandler(list),
 };
