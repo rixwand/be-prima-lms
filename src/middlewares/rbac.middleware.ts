@@ -23,12 +23,11 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
       if (!user?.roles) return res.status(401).json({ message: "Unauthorized" });
       const scopes = user.roles.perms
         .map(rp => rp.permission)
-        .filter(p => p.action == action && p.resource == action)
+        .filter(p => p.action == action && p.resource == resource)
         .map(p => p.scope);
       if (scopes.length == 0) return res.status(403).json({ message: "Forbidden" });
 
       if (opts?.scope && !opts.scope.includes(opts.scope)) return res.status(403).json({ message: "Forbidden" });
-
       req.authz = { action, resource, scopes };
       next();
     } catch (err) {

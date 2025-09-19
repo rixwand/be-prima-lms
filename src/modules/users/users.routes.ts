@@ -9,6 +9,6 @@ userRoutes.use(authMiddleware);
 userRoutes.get("/me", userController.get);
 userRoutes.patch("/me", userController.update);
 userRoutes.patch("/update-password", userController.updatePassword);
-userRoutes.get("/list", requirePermission("manage", "user"), userController.list);
+userRoutes.get("/list", requirePermission("manage", "user", { scope: "global" }), userController.list);
 
 export default userRoutes;
