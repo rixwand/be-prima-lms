@@ -1,4 +1,4 @@
-import { prisma } from "../../common/libs/prisma";
+import { prisma } from "../../../common/libs/prisma";
 
 export const courseSectionRepo = {
   async getMaxSectionPosition(courseId: number) {
@@ -12,5 +12,9 @@ export const courseSectionRepo = {
     return prisma.courseSection.createMany({
       data: sections,
     });
+  },
+
+  async findById(id: number) {
+    return prisma.courseSection.findUnique({ where: { id } });
   },
 };

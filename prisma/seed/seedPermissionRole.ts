@@ -2,10 +2,10 @@ import type { PrismaClient } from "@prisma/client";
 
 export default async function seedPermissionRoles(prisma: PrismaClient) {
   // 1. Create Roles
-  const userRole = await prisma.role.upsert({
-    where: { name: "user" },
+  const memberRole = await prisma.role.upsert({
+    where: { name: "member" },
     update: {},
-    create: { name: "user" },
+    create: { name: "member" },
   });
 
   const lecturerRole = await prisma.role.upsert({
@@ -47,7 +47,7 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
   // 4. Assign permissions to roles (RolePermission)
   // user: only view own courses
   await prisma.rolePermission.createMany({
-    data: [{ roleId: userRole.id, permissionId: getPerm("view", "course", "own").id }],
+    data: [{ roleId: memberRole.id, permissionId: getPerm("view", "course", "own").id }],
     skipDuplicates: true,
   });
 

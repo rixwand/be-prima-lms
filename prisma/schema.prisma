@@ -122,12 +122,40 @@ model Course {
   slug          String @unique
   status        CourseStatus @default(DRAFT)
   ownerId       Int
+  coverImage    String @map("cover_image")
+  previewVideo  String? @map("preview_video")
+  shortDescription String @db.Text @map("short_description")
+  descriptionJson  Json? @map("description_json")
+  priceAmount   Int @default(0)
+  priceCurrency String @default("IDR")
+  isFree        Boolean @default(false)
   createdAt     DateTime @default(now())
 
   owner         User  @relation("CourseOwner", fields: [ownerId], references: [id])
   sections      CourseSection[]
-
+  tags          CourseTag[]   @relation("CourseTags")
   @@map("courses")
+}
+
+
+model Tag {
+  id        Int         @id @default(autoincrement())
+  name      String      @unique
+  slug      String      @unique
+  courses   CourseTag[] @relation("CourseTags")
+
+  @@map("tags")
+}
+
+model CourseTag {
+  courseId Int
+  tagId    Int
+
+  course   Course @relation("CourseTags", fields: [courseId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation("CourseTags", fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, tagId])
+  @@map("course_tags")
 }
 
 model CourseSection {
@@ -152,6 +180,7 @@ model Lesson {
   summary     String?
   position    Int
   durationSec Int?
+  isPreview   Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -8,6 +8,10 @@ declare global {
         resource: string;
         scopes: string[];
       };
+      course?: {
+        id: number;
+        ownerId: number;
+      };
     }
   }
 }

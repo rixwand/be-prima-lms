@@ -1,11 +1,8 @@
-import { InferType, Schema, ValidationError } from "yup";
-import { ApiError } from "./http";
+import { InferType, Schema, ValidationError, number } from "yup";
 import { formatYupError } from "./error";
+import { ApiError } from "./http";
 
-export const validate = async <T>(
-  schema: Schema<T>,
-  data: any
-): Promise<InferType<typeof schema>> => {
+export const validate = async <T>(schema: Schema<T>, data: any): Promise<InferType<typeof schema>> => {
   try {
     const res = await schema.validate(data, {
       abortEarly: false,
@@ -18,3 +15,5 @@ export const validate = async <T>(
     throw new ApiError(400, JSON.stringify(message));
   }
 };
+
+export const validateIdParams = async (id: number) => validate(number().positive().integer().required(), id);
