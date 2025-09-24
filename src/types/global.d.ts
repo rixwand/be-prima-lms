@@ -12,6 +12,9 @@ declare global {
         id: number;
         ownerId: number;
       };
+      section?: { id: number; courseId: number };
+      lesson?: { id: number; sectionId: number };
+      block?: { id: number; lessonId: number };
     }
   }
 }

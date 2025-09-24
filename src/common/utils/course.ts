@@ -16,7 +16,7 @@ function randomSuffix(length = 5): string {
     .slice(0, length);
 }
 
-export async function createWithUniqueSlug<T>(
+export async function withUniqueSlug<T>(
   tryCreate: (candidateSlug: string) => Promise<T>,
   baseSlug: string,
   maxTries = 5

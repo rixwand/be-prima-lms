@@ -13,3 +13,16 @@ export const createLessonSchema = yup
   )
   .min(1)
   .required();
+
+export const updateLessonSchema = yup
+  .object({
+    title: yup.string().optional(),
+    summary: yup.string().optional(),
+    durationSec: yup.number().optional(),
+    isPreview: yup.boolean().optional(),
+  })
+  .test(
+    "at-least-one-field",
+    "At least one field must be provided",
+    value => value != null && Object.keys(value).length > 0
+  );

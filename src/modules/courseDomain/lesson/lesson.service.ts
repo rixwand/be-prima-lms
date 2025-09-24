@@ -1,12 +1,12 @@
 import { slugify } from "../../../common/utils/course";
-import { ApiError } from "../../../common/utils/http";
+import { optionalizeUndefined } from "../../../common/utils/function";
 import { courseSectionRepo } from "../courseSection/courseSection.repository";
 import { lessonRepo } from "./lesson.repository";
-import { ILessonCreateEntity, ILessonsCreate } from "./lesson.types";
+import { ILessonCreateEntity, ILessonsCreate, ILessonUpdate } from "./lesson.types";
 
 export const lessonService = {
   async create(lessons: ILessonsCreate, sectionId: number) {
-    if (await sectionNotAvailable(sectionId)) throw new ApiError(404, "Section not found");
+    await courseSectionRepo.findByIdOrThrow(sectionId);
     const { _max } = await lessonRepo.getMaxLessonPosition(sectionId);
     let position = (_max.position ?? 0) + 1;
     const lessonData = lessons.map(({ durationSec, summary, ...lesson }) => {
@@ -23,9 +23,15 @@ export const lessonService = {
     });
     return lessonRepo.createMany(lessonData);
   },
-};
 
-const sectionNotAvailable = async (id: number) => {
-  const section = await courseSectionRepo.findById(id);
-  return !section;
+  async update({ title, ...lesson }: ILessonUpdate, ids: { id: number; sectionId: number }) {
+    return lessonRepo.update(
+      optionalizeUndefined({
+        ...lesson,
+        title,
+        slug: title ? slugify(title) : undefined,
+      }),
+      ids
+    );
+  },
 };
