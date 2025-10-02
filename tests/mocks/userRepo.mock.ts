@@ -1,16 +1,18 @@
-type UserRepoMock = {
-  create: jest.Mock;
-  findByEmail: jest.Mock;
-};
+import type { UserRepoModule } from "./_modules.types";
+import { makeRepoMock } from "./_utils";
+
+const REPO_PATH = "../../src/modules/users/user.repository";
+
+type UserRepo = UserRepoModule["userRepo"];
+type TUserRepoMock = { [K in keyof UserRepo]: jest.Mock };
+
 export const mockUserRepo = () => {
-  jest.mock("../../src/modules/users/user.repository", () => {
-    const [create, findByEmail, findById] = Array.from({ length: 3 }, () => jest.fn());
-    const userRepo = { create, findByEmail };
-    return {
-      userRepo,
-      __mocks__: userRepo,
-      __esModule: true,
-    };
+  jest.mock(REPO_PATH, () => {
+    const actual = jest.requireActual<UserRepoModule>(REPO_PATH);
+    const keys = Object.keys(actual.userRepo) as (keyof UserRepo)[];
+    const repoMock = makeRepoMock(keys);
+    return { ...actual, userRepo: repoMock, __mocks__: repoMock, __esModule: true };
   });
-  return (): UserRepoMock => jest.requireMock("../../src/modules/users/user.repository").__mocks__;
+
+  return (): TUserRepoMock => jest.requireMock(REPO_PATH).__mocks__;
 };

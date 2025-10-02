@@ -34,4 +34,12 @@ export const lessonService = {
       ids
     );
   },
+
+  async remove(props: { id: number; sectionId: number }) {
+    return lessonRepo.remove(props);
+  },
+
+  async removeMany(props: { ids: number[]; sectionId: number }) {
+    return lessonRepo.removeMany(props);
+  },
 };

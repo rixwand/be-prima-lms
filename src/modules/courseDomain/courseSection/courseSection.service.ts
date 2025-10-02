@@ -24,4 +24,12 @@ export const courseSectionService = {
     await courseSectionRepo.bulkApplyPositionsTwoPhase(courseId, newOrder.reverse());
     return { newOrder };
   },
+
+  async remove(ids: { id: number; courseId: number }) {
+    return courseSectionRepo.remove(ids);
+  },
+
+  async removeMany(props: { ids: number[]; courseId: number }) {
+    return courseSectionRepo.removeMany(props);
+  },
 };

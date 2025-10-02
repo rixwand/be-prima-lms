@@ -3,26 +3,37 @@ import { requireCourseOwnership, requireHierarcy } from "../../../middlewares/co
 import requirePermission from "../../../middlewares/rbac.middleware";
 import { courseSectionController } from "./courseSection.controller";
 
-const courseSectionRoutes = Router();
+const courseSectionRoutes = Router({ mergeParams: true });
 
 courseSectionRoutes.post(
-  "/:courseId/section",
+  "/",
   requirePermission("create", "course", { scope: "own" }),
   requireCourseOwnership,
   courseSectionController.create
 );
-// courseSectionRoutes.get("/:courseId/sections", requirePermission("view", "course"));
+// courseSectionRoutes.get("/", requirePermission("view", "course"));
 courseSectionRoutes.patch(
-  "/:courseId/section/reorder",
+  "/reorder",
   requirePermission("edit", "course", { scope: "own" }),
   requireCourseOwnership,
   courseSectionController.reorder
 );
 courseSectionRoutes.patch(
-  "/:courseId/section/:sectionId",
+  "/:sectionId",
   requirePermission("edit", "course", { scope: "own" }),
   requireHierarcy("section"),
   courseSectionController.update
+);
+courseSectionRoutes.delete(
+  "/:sectionId",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireHierarcy("section"),
+  courseSectionController.remove
+);
+courseSectionRoutes.delete(
+  "/deleteMany",
+  requirePermission("delete", "course", { scope: "own" }),
+  courseSectionController.removeMany
 );
 
 export default courseSectionRoutes;

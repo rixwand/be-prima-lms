@@ -19,4 +19,17 @@ export const lessonRepo = {
       data: lesson,
     });
   },
+
+  async remove(props: { id: number; sectionId: number }) {
+    return prisma.lesson.delete({ where: props });
+  },
+
+  async removeMany({ ids, sectionId }: { ids: number[]; sectionId: number }) {
+    return prisma.lesson.deleteMany({
+      where: {
+        sectionId,
+        id: { in: ids },
+      },
+    });
+  },
 };

@@ -127,6 +127,7 @@ model Course {
   shortDescription String @db.Text @map("short_description")
   descriptionJson  Json? @map("description_json")
   priceAmount   Int @default(0)
+  // TODO: REMOVE price currency in next migration
   priceCurrency String @default("IDR")
   isFree        Boolean @default(false)
   createdAt     DateTime @default(now())

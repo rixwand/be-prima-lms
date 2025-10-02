@@ -27,6 +27,7 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
       { action: "view", resource: "course", scope: "own" },
       { action: "create", resource: "course", scope: "own" },
       { action: "edit", resource: "course", scope: "own" },
+      { action: "delete", resource: "course", scope: "own" },
       { action: "view", resource: "course", scope: "global" },
       { action: "create", resource: "course", scope: "global" },
       { action: "edit", resource: "course", scope: "global" },
@@ -57,6 +58,7 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
       { roleId: lecturerRole.id, permissionId: getPerm("view", "course", "own").id },
       { roleId: lecturerRole.id, permissionId: getPerm("create", "course", "own").id },
       { roleId: lecturerRole.id, permissionId: getPerm("edit", "course", "own").id },
+      { roleId: lecturerRole.id, permissionId: getPerm("delete", "course", "own").id },
     ],
     skipDuplicates: true,
   });

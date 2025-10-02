@@ -1,18 +1,18 @@
-type TRefreshSessionRepo = {
-  get: jest.Mock;
-  create: jest.Mock;
-  rotate: jest.Mock;
-  revokeMany: jest.Mock;
-};
+import type { SessionRepoModule } from "./_modules.types";
+import { makeRepoMock } from "./_utils";
+
+const REPO_PATH = "../../src/modules/session/session.repository";
+
+type RefreshSessionRepo = SessionRepoModule["sessionRepo"];
+type TRefreshSessionRepoMock = { [K in keyof RefreshSessionRepo]: jest.Mock };
+
 export const mockSessionRepo = () => {
-  jest.mock("../../src/modules/session/session.repository", () => {
-    const [get, create, rotate, revokeMany] = Array.from({ length: 4 }, () => jest.fn());
-    const RefreshSessionRepo = { get, create, rotate, revokeMany };
-    return {
-      RefreshSessionRepo,
-      __mock__: { ...RefreshSessionRepo },
-      __esmodule: true,
-    };
+  jest.mock(REPO_PATH, () => {
+    const actual = jest.requireActual<SessionRepoModule>(REPO_PATH);
+    const keys = Object.keys(actual.sessionRepo) as (keyof RefreshSessionRepo)[];
+    const repoMock = makeRepoMock(keys);
+    return { ...actual, sessionRepo: repoMock, __mocks__: repoMock, __esModule: true };
   });
-  return () => jest.requireMock("../../src/modules/session/session.repository").__mock__ as TRefreshSessionRepo;
+
+  return (): TRefreshSessionRepoMock => jest.requireMock(REPO_PATH).__mocks__;
 };

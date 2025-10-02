@@ -8,4 +8,6 @@ module.exports = {
   transform: {
     ...tsJestTransformCfg,
   },
+  clearMocks: true,
+  restoreMocks: true,
 };

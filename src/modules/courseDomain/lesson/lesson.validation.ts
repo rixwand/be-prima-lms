@@ -26,3 +26,11 @@ export const updateLessonSchema = yup
     "At least one field must be provided",
     value => value != null && Object.keys(value).length > 0
   );
+
+export const deleteManyLessonsSchema = yup.object({
+  ids: yup
+    .array()
+    .of(yup.number().integer().positive().required())
+    .min(1, "At least one id must be provided")
+    .required("ids field is required"),
+});

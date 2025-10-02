@@ -72,4 +72,38 @@ export const courseRepo = {
       orderBy: { createdAt: "desc" },
     });
   },
+
+  async remove(id: number) {
+    return prisma.course.delete({
+      where: { id },
+    });
+  },
+
+  async removeMany(ids: number[]) {
+    return prisma.course.deleteMany({
+      where: {
+        id: { in: ids },
+      },
+    });
+  },
+
+  async listCourseByUser({ limit, page, userId }: { userId: number; page: number; limit: number }) {
+    return prisma.course.findMany({
+      where: { ownerId: userId },
+      omit: { descriptionJson: true, shortDescription: true, ownerId: true, previewVideo: true },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+  },
+
+  async findBySlug(slug: string) {
+    return prisma.course.findUnique({
+      where: { slug },
+      include: {
+        sections: {
+          select: { title: true, lessons: { select: { title: true } } },
+        },
+      },
+    });
+  },
 };

@@ -1,0 +1,39 @@
+import { Router } from "express";
+import authMiddleware from "../../../middlewares/auth.middleware";
+import { requireCourseOwnership } from "../../../middlewares/course.middleware";
+import requirePermission from "../../../middlewares/rbac.middleware";
+import { courseController } from "./course.controller";
+
+const myCourse = Router();
+
+myCourse.use(authMiddleware);
+myCourse.get("/", requirePermission("view", "course", { scope: "own" }), courseController.myCourse);
+myCourse.post("/", requirePermission("create", "course", { scope: "own" }), courseController.create);
+myCourse.patch(
+  "/:courseId",
+  requirePermission("edit", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.update
+);
+myCourse.patch(
+  "/:courseId/tag",
+  requirePermission("edit", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.updateTags
+);
+
+myCourse.delete(
+  "/:courseId",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.remove
+);
+
+myCourse.delete(
+  "/deleteMany",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.removeMany
+);
+
+export default myCourse;

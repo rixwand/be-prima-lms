@@ -30,3 +30,11 @@ export const reorderCourseSectionsSchema = yup
     const positions = value.reorders.map(r => r.position);
     return positions.length === new Set(positions).size;
   });
+
+export const deleteManyCourseSectionsSchema = yup.object({
+  ids: yup
+    .array()
+    .of(yup.number().integer().positive().required())
+    .min(1, "At least one id must be provided")
+    .required("ids field is required"),
+});

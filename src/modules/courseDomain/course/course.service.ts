@@ -1,5 +1,6 @@
 import { slugify } from "../../../common/utils/course";
-import { optionalizeUndefined } from "../../../common/utils/function";
+import { flattenObject, optionalizeUndefined } from "../../../common/utils/function";
+import { ApiError } from "../../../common/utils/http";
 import { courseRepo } from "./course.repository";
 import { ICourseCreate, ICourseUpdate, ICourseUpdateTags } from "./course.types";
 export const courseService = {
@@ -53,5 +54,23 @@ export const courseService = {
         totalPage: Math.ceil(total / limit),
       },
     };
+  },
+
+  async remove(courseId: number) {
+    return courseRepo.remove(courseId);
+  },
+
+  async removeMany(ids: number[]) {
+    return courseRepo.removeMany(ids);
+  },
+
+  async myCourse(props: { userId: number; page: number; limit: number }) {
+    return courseRepo.listCourseByUser(props);
+  },
+
+  async getPreview(slug: string) {
+    const course = await courseRepo.findBySlug(slug);
+    if (!course) throw new ApiError(404, "Course not found");
+    return flattenObject(course);
   },
 };

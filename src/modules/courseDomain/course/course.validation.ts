@@ -61,3 +61,11 @@ export const updateCourseTagsSchema = yup
     return new Set(arr).size === arr.length;
   })
   .noUnknown();
+
+export const deleteManyCourseSchema = yup.object({
+  ids: yup
+    .array()
+    .of(yup.number().integer().positive().required())
+    .min(1, "At least one id must be provided")
+    .required("ids field is required"),
+});

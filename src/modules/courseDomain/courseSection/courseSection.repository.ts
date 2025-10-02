@@ -72,4 +72,17 @@ export const courseSectionRepo = {
     `;
     });
   },
+
+  async remove(ids: { id: number; courseId: number }) {
+    return prisma.courseSection.delete({ where: ids });
+  },
+
+  async removeMany({ courseId, ids }: { ids: number[]; courseId: number }) {
+    return prisma.courseSection.deleteMany({
+      where: {
+        id: { in: ids },
+        courseId,
+      },
+    });
+  },
 };

@@ -4,23 +4,35 @@ import { requireHierarcy } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
 import { lessonController } from "./lesson.controller";
 
-const lessonRoutes = Router();
-
-const PREFIX_URL = "/:courseId/section/:sectionId/lesson";
+const lessonRoutes = Router({ mergeParams: true });
 
 lessonRoutes.use(authMiddleware);
 lessonRoutes.post(
-  PREFIX_URL + "/",
+  "/",
   requirePermission("create", "course", { scope: "own" }),
   requireHierarcy("section"),
   lessonController.create
 );
 
 lessonRoutes.patch(
-  PREFIX_URL + "/:lessonId",
+  "/:lessonId",
   requirePermission("edit", "course", { scope: "own" }),
   requireHierarcy("lesson"),
   lessonController.update
+);
+
+lessonRoutes.delete(
+  "/:lessonId",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireHierarcy("lesson"),
+  lessonController.remove
+);
+
+lessonRoutes.delete(
+  "/deleteMany",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireHierarcy("section"),
+  lessonController.removeMany
 );
 
 export default lessonRoutes;
