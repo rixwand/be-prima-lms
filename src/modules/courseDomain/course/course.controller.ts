@@ -18,7 +18,7 @@ const list: AsyncRequestHandler = async (req, res) => {
   const page = Number(req.params.page) || 1;
   const limit = Number(req.params.page) || 10;
   const result = await courseService.list(page, limit);
-  res.status(200).json(result);
+  res.status(200).json({ data: result });
 };
 
 const update: AsyncRequestHandler = async (req, res) => {
@@ -52,7 +52,7 @@ const myCourse: AsyncRequestHandler = async (req, res) => {
     limit,
     page,
   });
-  res.status(200).json(result);
+  res.status(200).json({ data: result });
 };
 
 const preview: AsyncRequestHandler = async (req, res) => {

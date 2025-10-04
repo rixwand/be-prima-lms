@@ -1,10 +1,20 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../common/libs/prisma";
 import { slugify } from "../../../common/utils/course";
-import { optionalizeUndefined } from "../../../common/utils/function";
-import { ICourseCreateEntity } from "./course.types";
+import { OptionalizeUndefined, optionalizeUndefined } from "../../../common/utils/function";
+import { ICourseCreateEntity, ICourseDiscountCreate, ICourseSectionsCreate } from "./course.types";
 export const courseRepo = {
-  async create(course: ICourseCreateEntity, tags: string[]) {
+  async create({
+    course,
+    sections,
+    tags,
+    discount,
+  }: {
+    course: ICourseCreateEntity;
+    tags: string[];
+    sections: ICourseSectionsCreate;
+    discount: OptionalizeUndefined<ICourseDiscountCreate>;
+  }) {
     const data = optionalizeUndefined(course);
     return prisma.course.create({
       data: {
@@ -18,6 +28,40 @@ export const courseRepo = {
               },
             },
           })),
+        },
+        ...(sections
+          ? {
+              sections: {
+                create: sections.map(({ title, lessons }, i) => ({
+                  title: title,
+                  position: i + 1,
+                  lessons: {
+                    ...(lessons
+                      ? {
+                          create: lessons.map((l, li) => {
+                            const lesson = optionalizeUndefined(l);
+                            return {
+                              ...lesson,
+                              position: li + 1,
+                              slug: slugify(l.title),
+                            };
+                          }),
+                        }
+                      : {}),
+                  },
+                })),
+              },
+            }
+          : {}),
+        discount: {
+          ...(discount
+            ? {
+                create: {
+                  ...discount,
+                  type: discount.type == "FIXED" ? "FIXED" : "PERCENTAGE",
+                },
+              }
+            : {}),
         },
       },
     });
@@ -94,6 +138,10 @@ export const courseRepo = {
       take: limit,
       skip: (page - 1) * limit,
     });
+  },
+
+  async countAllByUser(userId: number) {
+    return prisma.course.count({ where: { ownerId: userId } });
   },
 
   async findBySlug(slug: string) {

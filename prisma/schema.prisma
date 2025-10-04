@@ -127,14 +127,13 @@ model Course {
   shortDescription String @db.Text @map("short_description")
   descriptionJson  Json? @map("description_json")
   priceAmount   Int @default(0)
-  // TODO: REMOVE price currency in next migration
-  priceCurrency String @default("IDR")
   isFree        Boolean @default(false)
   createdAt     DateTime @default(now())
 
   owner         User  @relation("CourseOwner", fields: [ownerId], references: [id])
   sections      CourseSection[]
   tags          CourseTag[]   @relation("CourseTags")
+  discount      CourseDiscount[]
   @@map("courses")
 }
 
@@ -208,4 +207,29 @@ model LessonBlock {
 
   @@unique([lessonId, position])
   @@map("lesson_blocks")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model CourseDiscount {
+  id           Int           @id @default(autoincrement())
+  courseId     Int
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  type         DiscountType
+  value        Int
+  startAt      DateTime?
+  endAt        DateTime?
+  isActive     Boolean        @default(true)
+  label        String?
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([courseId, isActive])
+  @@index([courseId, startAt, endAt])
+  @@map("course_discount")
 }

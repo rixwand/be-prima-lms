@@ -5,15 +5,17 @@ import { courseRepo } from "./course.repository";
 import { ICourseCreate, ICourseUpdate, ICourseUpdateTags } from "./course.types";
 export const courseService = {
   async create(course: ICourseCreate, ownerId: number) {
-    const { tags, ...courseData } = course;
-    return courseRepo.create(
-      {
+    const { discount, tags, sections, ...courseData } = course;
+    return courseRepo.create({
+      course: {
         ...courseData,
         ownerId,
         slug: slugify(courseData.title),
       },
-      tags
-    );
+      tags,
+      sections,
+      discount: optionalizeUndefined(discount),
+    });
   },
 
   async update(course: ICourseUpdate, courseId: number) {
@@ -46,7 +48,7 @@ export const courseService = {
   async list(page: number, limit: number) {
     const [total, courses] = await Promise.all([courseRepo.countAll(), courseRepo.list(page, limit)]);
     return {
-      data: courses,
+      courses,
       meta: {
         total,
         page,
@@ -64,8 +66,20 @@ export const courseService = {
     return courseRepo.removeMany(ids);
   },
 
-  async myCourse(props: { userId: number; page: number; limit: number }) {
-    return courseRepo.listCourseByUser(props);
+  async myCourse({ limit, page, userId }: { userId: number; page: number; limit: number }) {
+    const [total, courses] = await Promise.all([
+      courseRepo.countAllByUser(userId),
+      courseRepo.listCourseByUser({ limit, page, userId }),
+    ]);
+    return {
+      courses,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPage: Math.ceil(total / limit),
+      },
+    };
   },
 
   async getPreview(slug: string) {

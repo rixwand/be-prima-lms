@@ -2,7 +2,7 @@ import { prisma } from "../../common/libs/prisma";
 import { IRSCreateEntity, IRSRotateEntity } from "./session.types";
 export const sessionRepo = {
   async create(data: IRSCreateEntity) {
-    prisma.refreshSession.create({ data });
+    return prisma.refreshSession.create({ data });
   },
 
   async get(jti: string) {

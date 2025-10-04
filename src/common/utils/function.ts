@@ -25,7 +25,7 @@ export function flattenObject(
   return result;
 }
 
-type OptionalizeUndefined<T> = {
+export type OptionalizeUndefined<T> = {
   [K in keyof T as undefined extends T[K] ? K : never]?: Exclude<T[K], undefined>;
 } & {
   [K in keyof T as undefined extends T[K] ? never : K]: T[K];

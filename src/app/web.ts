@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { CLIENT_URL } from "../common/utils/env";
 import { errorMiddleware } from "../middlewares/error.middleware";
+import publicRoutes from "./public.routes";
 import api from "./routes";
 const web = express();
 
@@ -16,7 +17,7 @@ web.use(
 web.use(express.json());
 web.use(cookieParser());
 
-web.use("/api", api);
+web.use("/api", publicRoutes, api);
 
 web.use(errorMiddleware);
 
