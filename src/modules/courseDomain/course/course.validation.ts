@@ -45,7 +45,8 @@ export const createCourseSchema = yup.object({
       startAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
       endAt: yup.date().optional(),
     })
-    .optional(),
+    .optional()
+    .default(undefined),
 });
 
 export const updateCourseSchema = yup

@@ -4,6 +4,7 @@ import { ApiError } from "./http";
 
 export const validate = async <T>(schema: yup.Schema<T>, data: any): Promise<yup.InferType<typeof schema>> => {
   try {
+    console.log(JSON.stringify(data));
     const res = await schema.validate(data, {
       abortEarly: false,
       stripUnknown: true,

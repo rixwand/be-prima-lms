@@ -14,7 +14,7 @@ export const courseService = {
       },
       tags,
       sections,
-      discount: optionalizeUndefined(discount),
+      discount: discount ? optionalizeUndefined(discount) : undefined,
     });
   },
 

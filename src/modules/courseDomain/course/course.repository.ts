@@ -13,9 +13,10 @@ export const courseRepo = {
     course: ICourseCreateEntity;
     tags: string[];
     sections: ICourseSectionsCreate;
-    discount: OptionalizeUndefined<ICourseDiscountCreate>;
+    discount?: OptionalizeUndefined<ICourseDiscountCreate>;
   }) {
     const data = optionalizeUndefined(course);
+    console.log(discount);
     return prisma.course.create({
       data: {
         ...data,
@@ -134,6 +135,9 @@ export const courseRepo = {
   async listCourseByUser({ limit, page, userId }: { userId: number; page: number; limit: number }) {
     return prisma.course.findMany({
       where: { ownerId: userId },
+      include: {
+        discount: true,
+      },
       omit: { descriptionJson: true, shortDescription: true, ownerId: true, previewVideo: true },
       take: limit,
       skip: (page - 1) * limit,
@@ -148,9 +152,11 @@ export const courseRepo = {
     return prisma.course.findUnique({
       where: { slug },
       include: {
+        tags: { select: { tag: { select: { name: true } } } },
         sections: {
           select: { title: true, lessons: { select: { title: true } } },
         },
+        discount: true,
       },
     });
   },
