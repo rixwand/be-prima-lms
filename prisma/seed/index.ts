@@ -1,11 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import seedPermissionRoles from "./seedPermissionRole";
-import { seedRole } from "./seedRole";
 
 async function main() {
   const prisma = new PrismaClient();
   try {
-    await seedRole(prisma);
+    // await seedRole(prisma);
     await seedPermissionRoles(prisma);
   } catch (e) {
     console.error(e);

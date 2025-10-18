@@ -1,5 +1,5 @@
 import { ApiError, AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
-import { validate } from "../../../common/utils/validation";
+import { validate, validateIdParams, validateSlugParams } from "../../../common/utils/validation";
 import { courseService } from "./course.service";
 import {
   createCourseSchema,
@@ -56,10 +56,22 @@ const myCourse: AsyncRequestHandler = async (req, res) => {
 };
 
 const preview: AsyncRequestHandler = async (req, res) => {
-  const slug = req.params.courseSlug;
+  const slug = (await validateSlugParams(req.params.courseSlug)).slug;
   if (!slug) throw new ApiError(400, "Invalid slug");
   const course = await courseService.getPreview(slug);
   res.status(200).json({ data: course });
+};
+
+const get: AsyncRequestHandler = async (req, res) => {
+  const course = await courseService.get(req.course?.id!);
+  res.status(200).json({ data: course });
+};
+
+const removeDiscount: AsyncRequestHandler = async (req, res) => {
+  const courseId = req.course?.id!;
+  const { id } = await validateIdParams(req.params.discountId);
+  await courseService.removeDiscount({ courseId, id });
+  res.status(200).json({ message: "Successfully remove discount" });
 };
 
 export const courseController = {
@@ -71,4 +83,6 @@ export const courseController = {
   removeMany: asyncHandler(removeMany),
   myCourse: asyncHandler(myCourse),
   preview: asyncHandler(preview),
+  get: asyncHandler(get),
+  removeDiscount: asyncHandler(removeDiscount),
 };

@@ -3,6 +3,39 @@ import { prisma } from "../../../common/libs/prisma";
 import { slugify } from "../../../common/utils/course";
 import { OptionalizeUndefined, optionalizeUndefined } from "../../../common/utils/function";
 import { ICourseCreateEntity, ICourseDiscountCreate, ICourseSectionsCreate } from "./course.types";
+
+type IncludeArg<I extends Prisma.CourseInclude> = { include: I; select?: never };
+type SelectArg<S extends Prisma.CourseSelect> = { select: S; include?: never };
+
+async function findById(id: number): Promise<Prisma.CourseGetPayload<{}> | null>;
+async function findById<I extends Prisma.CourseInclude>(
+  id: number,
+  opts: IncludeArg<I>
+): Promise<Prisma.CourseGetPayload<{ include: I }> | null>;
+
+async function findById<S extends Prisma.CourseSelect>(
+  id: number,
+  opts: SelectArg<S>
+): Promise<Prisma.CourseGetPayload<{ select: S }> | null>;
+
+// Implementation (note the union type matches the overload shapes)
+async function findById(id: number, opts?: any) {
+  if (opts && opts.select)
+    return prisma.course.findUnique({
+      where: { id },
+      select: opts.select,
+    });
+  if (opts && opts.include)
+    return prisma.course.findUnique({
+      where: { id },
+      include: opts.include,
+    });
+  else
+    return prisma.course.findUnique({
+      where: { id },
+    });
+}
+
 export const courseRepo = {
   async create({
     course,
@@ -99,12 +132,7 @@ export const courseRepo = {
     });
   },
 
-  async findById(id: number) {
-    return prisma.course.findUnique({
-      where: { id },
-      select: { id: true, ownerId: true },
-    });
-  },
+  findById,
 
   async countAll() {
     return prisma.course.count();
@@ -154,7 +182,8 @@ export const courseRepo = {
       include: {
         tags: { select: { tag: { select: { name: true } } } },
         sections: {
-          select: { title: true, lessons: { select: { title: true } } },
+          select: { title: true, lessons: { select: { title: true }, orderBy: { position: "asc" } } },
+          orderBy: { position: "asc" },
         },
         discount: true,
       },

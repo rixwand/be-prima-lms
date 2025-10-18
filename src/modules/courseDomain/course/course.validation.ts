@@ -43,7 +43,7 @@ export const createCourseSchema = yup.object({
       label: yup.string().optional(),
       isActive: yup.boolean().default(true).optional(),
       startAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
-      endAt: yup.date().optional(),
+      endAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
     })
     .optional()
     .default(undefined),
@@ -59,6 +59,27 @@ export const updateCourseSchema = yup
     descriptionJson: yup.string().optional(),
     priceAmount: yup.number().optional(),
     isFree: yup.boolean().optional().default(false),
+    discounts: yup
+      .array()
+      .of(
+        yup.object({
+          id: yup.number().integer().positive().optional(),
+          type: yup.mixed<DiscountType>().defined().oneOf(DiscountTypes).optional(),
+          value: yup
+            .number()
+            .optional()
+            .when("type", {
+              is: "PERCENTAGE",
+              then: s => s.min(0).max(100),
+              otherwise: s => s.positive(),
+            }),
+          label: yup.string().optional(),
+          isActive: yup.boolean().default(true).optional(),
+          startAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
+          endAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
+        })
+      )
+      .optional(),
   })
   .test(
     "at-least-one-field",

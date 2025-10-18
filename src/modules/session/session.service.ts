@@ -5,7 +5,6 @@ export const sessionService = {
   async create(userId: number, jti: string) {
     const expiresAt = new Date(Date.now() + REFRESH_TTL_SEC * 1000);
     await sessionRepo.create({ userId, jti, expiresAt });
-    console.log("Creted a session with: ", jti + ":" + userId);
   },
 
   async rotate(data: IRotateSession) {

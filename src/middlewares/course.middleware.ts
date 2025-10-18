@@ -7,7 +7,7 @@ type Level = "course" | "section" | "lesson" | "block";
 export const requireCourseOwnership = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = req.user;
-    const courseId = Number(req.params.courseId);
+    const courseId = (await validateIdParams(req.params.courseId)).id;
 
     if (!Number.isFinite(courseId)) {
       return res.status(400).json({ message: "Invalid courseId" });

@@ -8,6 +8,12 @@ const myCourse = Router();
 
 myCourse.use(authMiddleware);
 myCourse.get("/", requirePermission("view", "course", { scope: "own" }), courseController.myCourse);
+myCourse.get(
+  "/:courseId",
+  requirePermission("view", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.get
+);
 myCourse.post("/", requirePermission("create", "course", { scope: "own" }), courseController.create);
 myCourse.patch(
   "/:courseId",
@@ -16,7 +22,7 @@ myCourse.patch(
   courseController.update
 );
 myCourse.patch(
-  "/:courseId/tag",
+  "/:courseId/tags",
   requirePermission("edit", "course", { scope: "own" }),
   requireCourseOwnership,
   courseController.updateTags
@@ -27,6 +33,13 @@ myCourse.delete(
   requirePermission("delete", "course", { scope: "own" }),
   requireCourseOwnership,
   courseController.remove
+);
+
+myCourse.delete(
+  "/:courseId/discounts/:discountId",
+  requirePermission("delete", "course", { scope: "own" }),
+  requireCourseOwnership,
+  courseController.removeDiscount
 );
 
 myCourse.delete(
