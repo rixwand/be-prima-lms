@@ -35,6 +35,12 @@ export const courseSectionRepo = {
     });
   },
 
+  async createOne(section: { title: string; position: number; courseId: number }) {
+    return prisma.courseSection.create({
+      data: section,
+    });
+  },
+
   async findByIdOrThrow(id: number) {
     const data = await prisma.courseSection.findUnique({ where: { id } });
     if (!data) throw new ApiError(404, "Course Section not found");

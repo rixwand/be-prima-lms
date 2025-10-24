@@ -3,10 +3,12 @@ import authMiddleware from "../../../middlewares/auth.middleware";
 import { requireHierarcy } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
 import { lessonController } from "./lesson.controller";
+import lessonBlockRoutes from "../lessonBlock/lessonBlock.routes";
 
 const lessonRoutes = Router({ mergeParams: true });
 
 lessonRoutes.use(authMiddleware);
+lessonRoutes.use("/:lessonId/blocks", lessonBlockRoutes);
 lessonRoutes.post(
   "/",
   requirePermission("create", "course", { scope: "own" }),
