@@ -2,11 +2,20 @@ import { Prisma } from "@prisma/client";
 import * as yup from "yup";
 export function formatYupError(err: yup.ValidationError) {
   const errors: Record<string, string> = {};
+
+  if (err.inner.length === 0) {
+    const path = err.path || "_error"; // fallback for object-level tests
+    errors[path] = err.message;
+    return errors;
+  }
+
   err.inner.forEach(e => {
-    if (e.path && !errors[e.path]) {
-      errors[e.path] = e.message;
+    const path = e.path || err.path || "_error";
+    if (!errors[path]) {
+      errors[path] = e.message;
     }
   });
+
   return errors;
 }
 

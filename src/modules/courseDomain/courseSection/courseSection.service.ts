@@ -25,6 +25,19 @@ function isExistingSection(item: ReorderItem): item is ReorderExistingSection {
 }
 
 export const courseSectionService = {
+  async listByCourse(courseId: number) {
+    const sections = await courseSectionRepo.getSectionsWithLessons(courseId);
+    let courseTitle = sections[0]?.course?.title;
+    if (courseTitle === undefined) {
+      courseTitle = await courseSectionRepo.getCourseTitle(courseId);
+    }
+    const normalizedSections = sections.map(({ course, ...section }) => section);
+    return {
+      courseTitle,
+      sections: normalizedSections,
+    };
+  },
+
   async appendSection(arrayTitle: string[], courseId: number) {
     const { _max } = await courseSectionRepo.getMaxSectionPosition(courseId);
     let position = (_max.position ?? 0) + 1;

@@ -17,6 +17,7 @@ async function getSectionsForCourse<T extends Prisma.CourseSectionSelect>(
 ): Promise<Array<Prisma.CourseSectionGetPayload<{ select: T }> | Prisma.CourseSectionGetPayload<{}>>> {
   return prisma.courseSection.findMany({
     where: { courseId },
+    orderBy: { position: "asc" },
     select: { ...select },
   });
 }
@@ -55,6 +56,46 @@ export const courseSectionRepo = {
   },
 
   getSectionsForCourse,
+
+  async getSectionsWithLessons(courseId: number) {
+    return prisma.courseSection.findMany({
+      where: { courseId },
+      orderBy: { position: "asc" },
+      select: {
+        id: true,
+        courseId: true,
+        title: true,
+        position: true,
+        course: {
+          select: {
+            title: true,
+          },
+        },
+        lessons: {
+          orderBy: { position: "asc" },
+          select: {
+            id: true,
+            sectionId: true,
+            title: true,
+            summary: true,
+            position: true,
+            slug: true,
+            durationSec: true,
+            isPreview: true,
+          },
+        },
+      },
+    });
+  },
+
+  async getCourseTitle(courseId: number) {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { title: true },
+    });
+    if (!course) throw new ApiError(404, "Course not found");
+    return course.title;
+  },
 
   async bulkApplyPositionsTwoPhase(courseId: number, items: SectionRow[]) {
     const VALUES = Prisma.join(items.map(it => Prisma.sql`(${it.id}, ${it.position})`));

@@ -2,6 +2,7 @@ import { Router } from "express";
 import authMiddleware from "../../../middlewares/auth.middleware";
 import { requireCourseOwnership } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
+import { coursePublishController } from "../coursePublish/coursePublish.controller";
 import { courseController } from "./course.controller";
 
 const myCourse = Router();
@@ -15,6 +16,12 @@ myCourse.get(
   courseController.get
 );
 myCourse.post("/", requirePermission("create", "course", { scope: "own" }), courseController.create);
+myCourse.post(
+  "/:courseId/publish",
+  requirePermission("create", "course", { scope: "own" }),
+  requireCourseOwnership,
+  coursePublishController.createRequest
+);
 myCourse.patch(
   "/:courseId",
   requirePermission("edit", "course", { scope: "own" }),

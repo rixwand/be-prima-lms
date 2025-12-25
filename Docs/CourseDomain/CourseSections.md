@@ -1,6 +1,6 @@
 # Course Sections
 
-Base path: `/api/me/course/:courseId/sections`
+Base path: `/api/me/courses/:courseId/sections`
 
 All endpoints require:
 
@@ -8,15 +8,57 @@ All endpoints require:
 - Course ownership (`requireCourseOwnership`)
 - Relevant permission on `course` with `own` scope
 
-| Method | Path | Description | Permission |
-| --- | --- | --- | --- |
-| `POST` | `/` | Append one or more sections to the course. | `create` |
-| `PATCH` | `/reorder` | Reorder existing sections and optionally insert new ones (with lessons). | `edit` |
-| `PATCH` | `/:sectionId` | Rename a section. | `edit` |
-| `DELETE` | `/:sectionId` | Delete a single section. | `delete` |
-| `DELETE` | `/deleteMany` | Delete several sections by ID. | `delete` |
+| Method   | Path          | Description                                                              | Permission |
+| -------- | ------------- | ------------------------------------------------------------------------ | ---------- |
+| `GET`    | `/`           | List ordered sections with their lessons for the course.                 | `view`     |
+| `POST`   | `/`           | Append one or more sections to the course.                               | `create`   |
+| `PATCH`  | `/reorder`    | Reorder existing sections and optionally insert new ones (with lessons). | `edit`     |
+| `PATCH`  | `/:sectionId` | Rename a section.                                                        | `edit`     |
+| `DELETE` | `/:sectionId` | Delete a single section.                                                 | `delete`   |
+| `DELETE` | `/deleteMany` | Delete several sections by ID.                                           | `delete`   |
 
 ## Payloads
+
+### `GET /`
+
+Returns the sections ordered by `position` along with their lessons ordered by `position`. The response also includes the parent course title for convenience.
+
+Response `200 OK`:
+
+```json
+{
+  "data": {
+    "courseTitle": "My Awesome Course",
+    "sections": [
+      {
+        "id": 11,
+        "courseId": 5,
+        "title": "Introduction",
+        "position": 1,
+        "lessons": [
+          {
+            "id": 101,
+            "sectionId": 11,
+            "title": "Welcome",
+            "summary": "High-level overview",
+            "position": 1,
+            "slug": "welcome",
+            "durationSec": 300,
+            "isPreview": true
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "courseId": 5,
+        "title": "Deep Dive",
+        "position": 2,
+        "lessons": []
+      }
+    ]
+  }
+}
+```
 
 ### `POST /`
 

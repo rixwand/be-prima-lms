@@ -12,6 +12,7 @@ export const validate = async <T>(schema: yup.Schema<T>, data: any): Promise<yup
     return res;
   } catch (error) {
     const err = error as yup.ValidationError;
+    console.log(typeof error);
     const message = formatYupError(err);
     throw new ApiError(400, JSON.stringify(message));
   }

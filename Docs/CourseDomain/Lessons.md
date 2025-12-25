@@ -1,6 +1,6 @@
 # Lessons
 
-Base path: `/api/me/course/:courseId/section/:sectionId/lessons`
+Base path: `/api/me/courses/:courseId/sections/:sectionId/lessons`
 
 Authentication and ownership are enforced via `requireHierarcy("section"|"lesson")` and RBAC:
 

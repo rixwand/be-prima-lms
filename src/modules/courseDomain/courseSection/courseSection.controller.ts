@@ -7,6 +7,10 @@ import {
   reorderCourseSectionsSchema,
   updateSectionSchema,
 } from "./courseSection.validation";
+const list: AsyncRequestHandler = async (req, res) => {
+  const { sections, courseTitle } = await courseSectionService.listByCourse(req.course?.id!);
+  res.status(200).json({ data: { sections, courseTitle } });
+};
 const create: AsyncRequestHandler = async (req, res) => {
   const courseId = req.course?.id!;
   const { arrayTitle } = await validate(createSectionSchema, req.body);
@@ -27,7 +31,7 @@ const update: AsyncRequestHandler = async (req, res) => {
 const reorder: AsyncRequestHandler = async (req, res) => {
   const { reorders } = await validate(reorderCourseSectionsSchema, req.body);
   const { newOrder } = await courseSectionService.reorder(req.course?.id!, reorders);
-  res.status(200).json({ data: newOrder });
+  res.status(200).json({ data: { newOrder } });
 };
 
 const remove: AsyncRequestHandler = async (req, res) => {
@@ -42,6 +46,7 @@ const removeMany: AsyncRequestHandler = async (req, res) => {
 };
 
 export const courseSectionController = {
+  list: asyncHandler(list),
   create: asyncHandler(create),
   update: asyncHandler(update),
   reorder: asyncHandler(reorder),

@@ -1,7 +1,12 @@
 import { AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
 import { validate, validateIdParams } from "../../../common/utils/validation";
-import { lessonService } from "./lesson.service";
-import { createLessonSchema, deleteManyLessonsSchema, updateLessonSchema } from "./lesson.validation";
+import { LessonReorderItem, lessonService } from "./lesson.service";
+import {
+  createLessonSchema,
+  deleteManyLessonsSchema,
+  reorderLessonsSchema,
+  updateLessonSchema,
+} from "./lesson.validation";
 
 const create: AsyncRequestHandler = async (req, res) => {
   const { id: sectionId } = await validateIdParams(req.params.sectionId);
@@ -27,9 +32,26 @@ const removeMany: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { message: `success remove ${count} course sections` } });
 };
 
+const list: AsyncRequestHandler = async (req, res) => {
+  const { id: sectionId } = await validateIdParams(req.params.sectionId);
+  const lessons = await lessonService.list(sectionId);
+  res.status(200).json({ data: lessons });
+};
+
+const reorder: AsyncRequestHandler = async (req, res) => {
+  console.log("reorder req body: ", req.body);
+  const { reorders } = await validate(reorderLessonsSchema, req.body);
+  console.log("reorder request: ", reorders);
+  const { newOrder } = await lessonService.reorderLessons(req.section?.id!, reorders as LessonReorderItem[]);
+  console.log("new Order: ", newOrder);
+  res.status(200).json({ data: { newOrder } });
+};
+
 export const lessonController = {
   create: asyncHandler(create),
   update: asyncHandler(update),
   remove: asyncHandler(remove),
   removeMany: asyncHandler(removeMany),
+  list: asyncHandler(list),
+  reorder: asyncHandler(reorder),
 };
