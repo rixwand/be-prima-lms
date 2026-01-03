@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { AUTH } from "../../../config";
 import authMiddleware from "../../../middlewares/auth.middleware";
 import { requireHierarcy } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
@@ -11,41 +12,41 @@ lessonRoutes.use(authMiddleware);
 lessonRoutes.use("/:lessonId/blocks", lessonBlockRoutes);
 lessonRoutes.get(
   "/",
-  requirePermission("view", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireHierarcy("section"),
   lessonController.list
 );
 lessonRoutes.post(
   "/",
-  requirePermission("create", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   lessonController.create
 );
 
 lessonRoutes.patch(
   "/reorder",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   lessonController.reorder
 );
 
 lessonRoutes.patch(
   "/:lessonId",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("lesson"),
   lessonController.update
 );
 
 lessonRoutes.delete(
   "/delete-many",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   lessonController.removeMany
 );
 
 lessonRoutes.delete(
   "/:lessonId",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("lesson"),
   lessonController.remove
 );

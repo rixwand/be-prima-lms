@@ -1,79 +1,106 @@
-import type { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { AUTH } from "../../src/config";
+
+type PermissionDef = {
+  action: string;
+  resource: string;
+  scope: string;
+};
 
 export default async function seedPermissionRoles(prisma: PrismaClient) {
-  // 1. Create Roles
-  const memberRole = await prisma.role.upsert({
-    where: { name: "member" },
-    update: {},
-    create: { name: "member" },
-  });
+  /**
+   * 1. Create Roles
+   */
+  const roles = await Promise.all(
+    Object.values(AUTH.ROLES).map(name =>
+      prisma.role.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      })
+    )
+  );
 
-  const lecturerRole = await prisma.role.upsert({
-    where: { name: "lecturer" },
-    update: {},
-    create: { name: "lecturer" },
-  });
+  const roleMap = Object.fromEntries(roles.map(r => [r.name, r.id]));
 
-  const adminRole = await prisma.role.upsert({
-    where: { name: "admin" },
-    update: {},
-    create: { name: "admin" },
-  });
-
-  // 2. Create Permissions
-  const permissions = await prisma.permission.createMany({
-    data: [
-      // Course permissions
-      { action: "view", resource: "course", scope: "own" },
-      { action: "create", resource: "course", scope: "own" },
-      { action: "edit", resource: "course", scope: "own" },
-      { action: "delete", resource: "course", scope: "own" },
-      { action: "view", resource: "course", scope: "global" },
-      { action: "create", resource: "course", scope: "global" },
-      { action: "edit", resource: "course", scope: "global" },
-      { action: "publish", resource: "course", scope: "global" },
-
-      // User management
-      { action: "manage", resource: "user", scope: "global" },
+  /**
+   * 2. Declare permissions per role (policy, not data)
+   */
+  const rolePolicies: Record<string, PermissionDef[]> = {
+    [AUTH.ROLES.MEMBER]: [
+      {
+        action: AUTH.ACTIONS.VIEW,
+        resource: AUTH.RESOURCES.COURSE,
+        scope: AUTH.SCOPES.OWN,
+      },
     ],
-    skipDuplicates: true, // avoids errors if you re-run seed
-  });
 
-  // 3. Fetch all permissions for role assignments
-  const allPerms = await prisma.permission.findMany();
+    [AUTH.ROLES.LECTURER]: [AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.DELETE].map(
+      action => ({
+        action,
+        resource: AUTH.RESOURCES.COURSE,
+        scope: AUTH.SCOPES.OWN,
+      })
+    ),
+    // course (global)
+    [AUTH.ROLES.ADMIN]: [
+      ...[AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.PUBLISH].map(action => ({
+        action,
+        resource: AUTH.RESOURCES.COURSE,
+        scope: AUTH.SCOPES.GLOBAL,
+      })),
 
-  const getPerm = (action: string, resource: string, scope: string) =>
-    allPerms.find(p => p.action === action && p.resource === resource && p.scope === scope)!;
+      {
+        action: AUTH.ACTIONS.MANAGE,
+        resource: AUTH.RESOURCES.USER,
+        scope: AUTH.SCOPES.GLOBAL,
+      },
+    ],
+  };
 
-  // 4. Assign permissions to roles (RolePermission)
-  // user: only view own courses
-  await prisma.rolePermission.createMany({
-    data: [{ roleId: memberRole.id, permissionId: getPerm("view", "course", "own").id }],
+  /**
+   * 3. Collect unique permissions
+   */
+  const permissionMap = new Map<string, PermissionDef>();
+
+  for (const perms of Object.values(rolePolicies)) {
+    for (const p of perms) {
+      const key = `${p.action}:${p.resource}:${p.scope}`;
+      permissionMap.set(key, p);
+    }
+  }
+
+  const permissions = Array.from(permissionMap.values());
+
+  /**
+   * 4. Insert permissions
+   */
+  await prisma.permission.createMany({
+    data: permissions,
     skipDuplicates: true,
   });
 
-  // lecturer: user perms + create/edit own courses
+  /**
+   * 5. Fetch permission IDs
+   */
+  const dbPermissions = await prisma.permission.findMany();
+
+  const permIdMap = new Map(dbPermissions.map(p => [`${p.action}:${p.resource}:${p.scope}`, p.id]));
+
+  /**
+   * 6. Assign permissions to roles
+   */
+  const rolePermissionData = Object.entries(rolePolicies).flatMap(([roleName, perms]) =>
+    perms.map(p => ({
+      roleId: roleMap[roleName]!,
+      permissionId: permIdMap.get(`${p.action}:${p.resource}:${p.scope}`)!,
+    }))
+  );
+
   await prisma.rolePermission.createMany({
-    data: [
-      { roleId: lecturerRole.id, permissionId: getPerm("view", "course", "own").id },
-      { roleId: lecturerRole.id, permissionId: getPerm("create", "course", "own").id },
-      { roleId: lecturerRole.id, permissionId: getPerm("edit", "course", "own").id },
-      { roleId: lecturerRole.id, permissionId: getPerm("delete", "course", "own").id },
-    ],
+    data: rolePermissionData,
     skipDuplicates: true,
   });
 
-  // admin: global course perms + user management
-  await prisma.rolePermission.createMany({
-    data: [
-      { roleId: adminRole.id, permissionId: getPerm("view", "course", "global").id },
-      { roleId: adminRole.id, permissionId: getPerm("create", "course", "global").id },
-      { roleId: adminRole.id, permissionId: getPerm("edit", "course", "global").id },
-      { roleId: adminRole.id, permissionId: getPerm("publish", "course", "global").id },
-      { roleId: adminRole.id, permissionId: getPerm("manage", "user", "global").id },
-    ],
-    skipDuplicates: true,
-  });
-
-  console.log("✅ Permission Seeded");
+  console.log("✅ Permissions auto-generated & seeded");
 }

@@ -1,3 +1,5 @@
+// RUN seed: npx prisma db seed
+
 import { PrismaClient } from "@prisma/client";
 import seedPermissionRoles from "./seedPermissionRole";
 

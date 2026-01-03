@@ -11,7 +11,7 @@ export const updateCoursePublishRequestSchema = yup.object({
   reviewedById: yup.number().integer().positive().optional(),
 });
 
-export const getCoursePublishRequestQueriesSchema = yup.object({
+export const listCoursePublishRequestQueriesSchema = yup.object({
   status: yup.mixed<PublishRequestStatus>().oneOf(Object.values(PublishRequestStatus)).optional(),
   page: yup.number().integer().positive().optional(),
   limit: yup.number().integer().positive().optional(),

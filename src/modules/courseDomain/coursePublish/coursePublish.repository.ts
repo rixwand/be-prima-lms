@@ -1,6 +1,29 @@
-import { Prisma, PublishRequestStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../../common/libs/prisma";
 import { GetCoursePublishRequestQueries, ICreateCoursePublishRequest } from "./coursePublish.types";
+
+const selectCoursePublishReturn = {
+  // select: {
+  id: true,
+  status: true,
+  createdAt: true,
+  courseId: true,
+  course: {
+    select: {
+      title: true,
+      coverImage: true,
+      slug: true,
+      priceAmount: true,
+      isFree: true,
+      discount: true,
+      owner: {
+        select: { fullName: true, username: true, profilePict: true },
+      },
+      // TODO: return for students and rating
+    },
+  },
+  // },
+} satisfies Prisma.CoursePublishRequestFindManyArgs["select"];
 
 export const coursePublishRepository = {
   async create(data: ICreateCoursePublishRequest, courseId: number) {
@@ -30,43 +53,22 @@ export const coursePublishRepository = {
     const areFiltersApplied = status || startDate || endDate || search;
 
     if (!areFiltersApplied) {
-      const [published, pending] = await Promise.all([
+      return Promise.all([
+        prisma.coursePublishRequest.count(),
         prisma.coursePublishRequest.findMany({
-          where: { status: PublishRequestStatus.APPROVED },
-          include: {
-            course: {
-              include: {
-                owner: true,
-              },
-            },
-            reviewedBy: true,
-          },
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        }),
-        prisma.coursePublishRequest.findMany({
-          where: { status: PublishRequestStatus.PENDING },
-          include: {
-            course: {
-              include: {
-                owner: true,
-              },
-            },
-            reviewedBy: true,
-          },
+          select: selectCoursePublishReturn,
           orderBy: { createdAt: "desc" },
           take: 10,
         }),
       ]);
-      return { published, pending };
     }
 
     const where: Prisma.CoursePublishRequestWhereInput = {
       ...(status && { status }),
-      // createdAt: {
-      //   gte: startDate,
-      //   lte: endDate,
-      // },
+      createdAt: {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      },
     };
 
     if (search) {
@@ -75,19 +77,17 @@ export const coursePublishRepository = {
         { course: { owner: { fullName: { contains: search, mode: "insensitive" } } } },
       ];
     }
-    return prisma.coursePublishRequest.findMany({
-      where,
-      include: {
-        course: {
-          include: {
-            owner: true,
-          },
-        },
-        reviewedBy: true,
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    return Promise.all([
+      prisma.coursePublishRequest.count({
+        where,
+      }),
+      prisma.coursePublishRequest.findMany({
+        where,
+        select: selectCoursePublishReturn,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
   },
 
   async update(id: number, data: Prisma.CoursePublishRequestUpdateInput) {

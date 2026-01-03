@@ -1,7 +1,11 @@
 import { AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
 import { validate, validateIdParams } from "../../../common/utils/validation";
 import { coursePublishService } from "./coursePublish.service";
-import { createCoursePublishRequestSchema, updateCoursePublishRequestSchema } from "./coursePublish.validation";
+import {
+  createCoursePublishRequestSchema,
+  listCoursePublishRequestQueriesSchema,
+  updateCoursePublishRequestSchema,
+} from "./coursePublish.validation";
 
 const createRequest: AsyncRequestHandler = async (req, res) => {
   const { notes } = await validate(createCoursePublishRequestSchema, req.body);
@@ -10,10 +14,10 @@ const createRequest: AsyncRequestHandler = async (req, res) => {
 };
 
 const listRequest: AsyncRequestHandler = async (req, res) => {
-  console.log(req.query);
-  // const result = await coursePublishService.listRequest();
+  const queryParams = await validate(listCoursePublishRequestQueriesSchema, req.query);
+  const result = await coursePublishService.listRequest(queryParams);
 
-  res.status(200).json({ data: ["success"] });
+  res.status(200).json({ data: result });
 };
 
 const updateRequest: AsyncRequestHandler = async (req, res) => {

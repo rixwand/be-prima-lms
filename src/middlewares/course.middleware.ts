@@ -1,10 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../common/libs/prisma";
 import { validateIdParams } from "../common/utils/validation";
+import { AUTH } from "../config";
 
 type Level = "course" | "section" | "lesson" | "block";
 
 export const requireCourseOwnership = async (req: Request, res: Response, next: NextFunction) => {
+  console.log("req.authz: ", req.authz);
   try {
     const user = req.user;
     const courseId = (await validateIdParams(req.params.courseId)).id;
@@ -13,10 +15,18 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
       return res.status(400).json({ message: "Invalid courseId" });
     }
 
+    if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL)) {
+      req.course = { id: courseId };
+      return next();
+    }
+
+    // TODO: if user role is member fetch into enrollment instead
     const course = await prisma.course.findUnique({
       where: { id: courseId },
       select: { id: true, ownerId: true },
     });
+
+    console.log("course in requireCourseOwnership: ", course);
 
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
@@ -36,6 +46,7 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
 };
 
 export const requireHierarcy = (level: Level) => async (req: Request, res: Response, next: NextFunction) => {
+  const isAdmin = req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL);
   try {
     const courseId = (await validateIdParams(req.params.courseId)).id;
     const sectionId = level !== "course" ? (await validateIdParams(req.params.sectionId)).id : null;
@@ -44,7 +55,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
 
     if (level === "course") {
       const course = await prisma.course.findFirst({
-        where: { id: courseId, ownerId: req.user?.id! },
+        where: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) },
         select: { id: true, ownerId: true },
       });
       if (!course) return notFound(res, "Course not found or not owned");
@@ -56,7 +67,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
       const section = await prisma.courseSection.findFirst({
         where: {
           id: sectionId!,
-          course: { id: courseId, ownerId: req.user?.id! },
+          course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) },
         },
         select: {
           id: true,
@@ -74,7 +85,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
       const lesson = await prisma.lesson.findFirst({
         where: {
           id: lessonId!,
-          section: { id: sectionId!, course: { id: courseId, ownerId: req.user?.id! } },
+          section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
         },
         select: {
           id: true,
@@ -101,7 +112,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
         id: blockId!,
         lesson: {
           id: lessonId!,
-          section: { id: sectionId!, course: { id: courseId, ownerId: req.user?.id! } },
+          section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
         },
       },
       select: {

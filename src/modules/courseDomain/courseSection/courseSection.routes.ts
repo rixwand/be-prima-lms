@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { AUTH } from "../../../config";
 import { requireCourseOwnership, requireHierarcy } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
 import { courseSectionController } from "./courseSection.controller";
@@ -7,36 +8,36 @@ const courseSectionRoutes = Router({ mergeParams: true });
 
 courseSectionRoutes.get(
   "/",
-  requirePermission("view", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireCourseOwnership,
   courseSectionController.list
 );
 courseSectionRoutes.post(
   "/",
-  requirePermission("create", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseSectionController.create
 );
 courseSectionRoutes.patch(
   "/reorder",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseSectionController.reorder
 );
 courseSectionRoutes.patch(
   "/:sectionId",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   courseSectionController.update
 );
 courseSectionRoutes.delete(
   "/delete-many",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   courseSectionController.removeMany
 );
 courseSectionRoutes.delete(
   "/:sectionId",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(AUTH.ACTIONS.DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   courseSectionController.remove
 );

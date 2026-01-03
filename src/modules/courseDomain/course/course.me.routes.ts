@@ -1,57 +1,68 @@
 import { Router } from "express";
+import { AUTH } from "../../../config";
 import authMiddleware from "../../../middlewares/auth.middleware";
 import { requireCourseOwnership } from "../../../middlewares/course.middleware";
 import requirePermission from "../../../middlewares/rbac.middleware";
 import { coursePublishController } from "../coursePublish/coursePublish.controller";
 import { courseController } from "./course.controller";
 
+const { CREATE, DELETE, EDIT, MANAGE, VIEW } = AUTH.ACTIONS;
+
 const myCourse = Router();
 
 myCourse.use(authMiddleware);
-myCourse.get("/", requirePermission("view", "course", { scope: "own" }), courseController.myCourse);
+myCourse.get(
+  "/",
+  requirePermission(VIEW, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  courseController.myCourse
+);
 myCourse.get(
   "/:courseId",
-  requirePermission("view", "course", { scope: "own" }),
+  requirePermission(VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireCourseOwnership,
   courseController.get
 );
-myCourse.post("/", requirePermission("create", "course", { scope: "own" }), courseController.create);
+myCourse.post(
+  "/",
+  requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  courseController.create
+);
 myCourse.post(
   "/:courseId/publish",
-  requirePermission("create", "course", { scope: "own" }),
+  requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   coursePublishController.createRequest
 );
 myCourse.patch(
   "/:courseId",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.update
 );
 myCourse.patch(
   "/:courseId/tags",
-  requirePermission("edit", "course", { scope: "own" }),
+  requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.updateTags
 );
 
 myCourse.delete(
   "/:courseId",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.remove
 );
 
 myCourse.delete(
   "/:courseId/discounts/:discountId",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.removeDiscount
 );
 
 myCourse.delete(
   "/deleteMany",
-  requirePermission("delete", "course", { scope: "own" }),
+  requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.removeMany
 );

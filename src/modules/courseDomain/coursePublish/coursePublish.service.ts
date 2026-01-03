@@ -18,7 +18,18 @@ export const coursePublishService = {
     return coursePublishRepository.create(data, courseId);
   },
 
-  listRequest: async (queries: GetCoursePublishRequestQueries) => coursePublishRepository.listRequest(queries),
+  listRequest: async (queries: GetCoursePublishRequestQueries) => {
+    const [total, courses] = await coursePublishRepository.listRequest(queries);
+    return {
+      courses,
+      meta: {
+          total,
+          page: queries.page || 1,
+          limit: queries.limit,
+          totalPage: Math.ceil(total / (queries.limit || 10)),
+      },
+    };
+  },
 
   async updateRequest(id: number, data: IUpdateCoursePublishRequest, reviewedById: number) {
     const request = await coursePublishRepository.findById(id);

@@ -10,7 +10,7 @@ declare global {
       };
       course?: {
         id: number;
-        ownerId: number;
+        ownerId?: number;
       };
       section?: { id: number; courseId: number };
       lesson?: { id: number; sectionId: number };
