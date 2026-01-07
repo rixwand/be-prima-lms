@@ -18,6 +18,7 @@ enum CourseStatus {
   DRAFT
   PUBLISHED
   PENDING
+  REJECTED
 }
 
 enum BlockType {
@@ -131,6 +132,7 @@ model Course {
   priceAmount   Int @default(0)
   isFree        Boolean @default(false)
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   owner         User  @relation("CourseOwner", fields: [ownerId], references: [id])
   sections      CourseSection[]
@@ -205,6 +207,7 @@ model LessonBlock {
   url         String?
   meta        Json?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   lesson      Lesson @relation(fields: [lessonId],references: [id], onDelete: Cascade)
 

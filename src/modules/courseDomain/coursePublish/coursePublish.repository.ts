@@ -1,6 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../../common/libs/prisma";
-import { GetCoursePublishRequestQueries, ICreateCoursePublishRequest } from "./coursePublish.types";
+import { optionalizeUndefined } from "../../../common/utils/function";
+import {
+  GetCoursePublishRequestQueries,
+  ICreateCoursePublishRequest,
+  IUpdateStatusCoursePublishRequest,
+} from "./coursePublish.types";
 
 const selectCoursePublishReturn = {
   // select: {
@@ -27,11 +32,20 @@ const selectCoursePublishReturn = {
 
 export const coursePublishRepository = {
   async create(data: ICreateCoursePublishRequest, courseId: number) {
-    return prisma.coursePublishRequest.create({
-      data: {
-        course: { connect: { id: courseId } },
-        notes: data.notes || null,
-      },
+    return prisma.$transaction(async tx => {
+      const newReq = await tx.coursePublishRequest.create({
+        data: {
+          course: { connect: { id: courseId } },
+          notes: data.notes || null,
+        },
+      });
+      await tx.course.update({
+        where: { id: courseId },
+        data: {
+          status: "PENDING",
+        },
+      });
+      return newReq;
     });
   },
 
@@ -90,16 +104,35 @@ export const coursePublishRepository = {
     ]);
   },
 
-  async update(id: number, data: Prisma.CoursePublishRequestUpdateInput) {
-    return prisma.coursePublishRequest.update({
-      where: { id },
-      data,
-    });
-  },
-
-  async delete(id: number) {
-    return prisma.coursePublishRequest.delete({
-      where: { id },
+  async updateStatus({
+    courseId,
+    data,
+    id,
+  }: {
+    id: number;
+    courseId: number;
+    data: IUpdateStatusCoursePublishRequest;
+  }) {
+    return prisma.$transaction(async tx => {
+      const updated = await tx.coursePublishRequest.update({
+        where: { id },
+        data: optionalizeUndefined(data),
+      });
+      const course = await tx.course.update({
+        where: {
+          id: courseId,
+        },
+        data: {
+          status: data.status === "APPROVED" ? "PUBLISHED" : data.status,
+        },
+        select: {
+          title: true,
+        },
+      });
+      return {
+        ...updated,
+        courseTitle: course.title,
+      };
     });
   },
 };

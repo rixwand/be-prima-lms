@@ -4,7 +4,7 @@ import { coursePublishService } from "./coursePublish.service";
 import {
   createCoursePublishRequestSchema,
   listCoursePublishRequestQueriesSchema,
-  updateCoursePublishRequestSchema,
+  notesCoursePublishRequestSchema,
 } from "./coursePublish.validation";
 
 const createRequest: AsyncRequestHandler = async (req, res) => {
@@ -20,23 +20,22 @@ const listRequest: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: result });
 };
 
-const updateRequest: AsyncRequestHandler = async (req, res) => {
-  const { id } = await validateIdParams(req.params.requestId);
-  const { status, notes } = await validate(updateCoursePublishRequestSchema, req.body);
-  const reviewedById = req.user?.id!; // Assuming req.user exists and has the reviewer's ID
-  const data = await coursePublishService.updateRequest(id, { status, notes }, reviewedById);
-  res.status(200).json({ data });
+const approveRequest: AsyncRequestHandler = async (req, res) => {
+  const { id: reqId } = await validateIdParams(req.params.requestId);
+  const published = await coursePublishService.approveRequest({ reqId, userId: req.user?.id! });
+  res.status(200).json({ data: `course "${published.courseTitle}" has been published` });
 };
 
-const deleteRequest: AsyncRequestHandler = async (req, res) => {
-  const { id: courseId } = await validateIdParams(req.params.courseId);
-  await coursePublishService.deleteRequest(courseId);
-  res.status(204).send();
+const rejectRequest: AsyncRequestHandler = async (req, res) => {
+  const { id: reqId } = await validateIdParams(req.params.requestId);
+  const { notes } = await validate(notesCoursePublishRequestSchema, req.body);
+  const published = await coursePublishService.rejectRequest({ reqId, userId: req.user?.id!, ...(notes && { notes }) });
+  res.status(200).json({ data: `course "${published.courseTitle}" has been rejected` });
 };
 
 export const coursePublishController = {
   createRequest: asyncHandler(createRequest),
   listRequest: asyncHandler(listRequest),
-  updateRequest: asyncHandler(updateRequest),
-  deleteRequest: asyncHandler(deleteRequest),
+  approveRequest: asyncHandler(approveRequest),
+  rejectRequest: asyncHandler(rejectRequest),
 };

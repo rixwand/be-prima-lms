@@ -5,10 +5,8 @@ export const createCoursePublishRequestSchema = yup.object({
   notes: yup.string().optional(),
 });
 
-export const updateCoursePublishRequestSchema = yup.object({
-  status: yup.mixed<"APPROVED" | "REJECTED">().oneOf(["APPROVED", "REJECTED"]).required(),
-  notes: yup.string().optional(),
-  reviewedById: yup.number().integer().positive().optional(),
+export const notesCoursePublishRequestSchema = yup.object({
+  notes: yup.string().max(500).optional(),
 });
 
 export const listCoursePublishRequestQueriesSchema = yup.object({

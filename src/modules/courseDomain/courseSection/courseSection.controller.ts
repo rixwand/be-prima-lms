@@ -8,8 +8,8 @@ import {
   updateSectionSchema,
 } from "./courseSection.validation";
 const list: AsyncRequestHandler = async (req, res) => {
-  const { sections, courseTitle } = await courseSectionService.listByCourse(req.course?.id!);
-  res.status(200).json({ data: { sections, courseTitle } });
+  const sections = await courseSectionService.listByCourse(req.course?.id!);
+  res.status(200).json({ data: sections });
 };
 const create: AsyncRequestHandler = async (req, res) => {
   const courseId = req.course?.id!;

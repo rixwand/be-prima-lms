@@ -52,13 +52,13 @@ export const createCourseSchema = yup.object({
 export const updateCourseSchema = yup
   .object({
     title: yup.string().optional(),
-    status: yup.mixed<"PUBLISHED" | "DRAFT">().oneOf(["PUBLISHED", "DRAFT"]).optional(),
+    status: yup.mixed<"PUBLISHED" | "DRAFT" | "PENDING">().oneOf(["PUBLISHED", "DRAFT", "PENDING"]).optional(),
     coverImage: yup.string().optional(),
     previewVideo: yup.string().optional(),
     shortDescription: yup.string().optional(),
     descriptionJson: yup.string().optional(),
     priceAmount: yup.number().optional(),
-    isFree: yup.boolean().optional().default(false),
+    isFree: yup.boolean().optional(),
     discounts: yup
       .array()
       .of(

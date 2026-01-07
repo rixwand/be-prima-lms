@@ -101,6 +101,11 @@ export const courseService = {
   async get(id: number) {
     const course = await courseRepo.findById(id, {
       include: {
+        coursePublishRequest: {
+          select: {
+            notes: true,
+          },
+        },
         tags: { select: { tag: true } },
         discount: true,
         sections: {
@@ -114,6 +119,7 @@ export const courseService = {
       },
     });
     if (!course) throw new ApiError(404, "Course not found");
+    console.log("get course by id: ", course);
     return flattenObject(course);
   },
 

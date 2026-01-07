@@ -1,21 +1,29 @@
-import { $Enums, Prisma } from "@prisma/client";
 import { ApiError } from "../../../common/utils/http";
-import { courseRepo } from "../course/course.repository";
 import { coursePublishRepository } from "./coursePublish.repository";
-import {
-  GetCoursePublishRequestQueries,
-  ICreateCoursePublishRequest,
-  IUpdateCoursePublishRequest,
-} from "./coursePublish.types";
+import { GetCoursePublishRequestQueries, ICreateCoursePublishRequest } from "./coursePublish.types";
+
+const isExistingRequest = async (reqId: number) => {
+  const existingRequest = await coursePublishRepository.findById(reqId);
+  if (!existingRequest) {
+    throw new ApiError(404, "A publish request for this course is not found.");
+  } else return existingRequest;
+};
 
 export const coursePublishService = {
   async createRequest(data: ICreateCoursePublishRequest, courseId: number) {
     const existingRequest = await coursePublishRepository.findByCourseId(courseId);
-    if (existingRequest) {
+    if (existingRequest && existingRequest.status !== "REJECTED") {
       throw new ApiError(409, "A publish request for this course already exists.");
     }
-
-    return coursePublishRepository.create(data, courseId);
+    if (existingRequest && existingRequest.status == "REJECTED") {
+      data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
+    }
+    return coursePublishRepository.create(
+      {
+        notes: `[instructor]: ${data.notes}`,
+      },
+      courseId
+    );
   },
 
   listRequest: async (queries: GetCoursePublishRequestQueries) => {
@@ -23,46 +31,37 @@ export const coursePublishService = {
     return {
       courses,
       meta: {
-          total,
-          page: queries.page || 1,
-          limit: queries.limit,
-          totalPage: Math.ceil(total / (queries.limit || 10)),
+        total,
+        page: queries.page || 1,
+        limit: queries.limit,
+        totalPage: Math.ceil(total / (queries.limit || 10)),
       },
     };
   },
 
-  async updateRequest(id: number, data: IUpdateCoursePublishRequest, reviewedById: number) {
-    const request = await coursePublishRepository.findById(id);
-    if (!request) {
-      throw new ApiError(404, "Publish request not found.");
-    }
-
-    // Only allow updating status if it's currently PENDING
-    if (request.status !== $Enums.PublishRequestStatus.PENDING) {
-      throw new ApiError(400, "Cannot update a request that is not pending.");
-    }
-
-    const updatedData: Prisma.CoursePublishRequestUpdateInput = {
-      status: data.status,
-      notes: data.notes || null,
-      reviewedBy: { connect: { id: reviewedById } },
-    };
-
-    const updatedRequest = await coursePublishRepository.update(id, updatedData);
-
-    // If approved, update course status to PUBLISHED
-    if (updatedRequest.status === $Enums.PublishRequestStatus.APPROVED) {
-      await courseRepo.update({ status: $Enums.CourseStatus.PUBLISHED }, updatedRequest.courseId);
-    }
-
-    return updatedRequest;
+  async approveRequest({ reqId, userId }: { reqId: number; userId: number }) {
+    const existingRequest = await isExistingRequest(reqId);
+    return coursePublishRepository.updateStatus({
+      id: existingRequest.id,
+      courseId: existingRequest.courseId,
+      data: {
+        status: "APPROVED",
+        notes: `${existingRequest.notes}\n\n[admin]:APPROVED`,
+        reviewedById: userId,
+      },
+    });
   },
 
-  async deleteRequest(courseId: number) {
-    const request = await coursePublishRepository.findByCourseId(courseId);
-    if (!request) {
-      throw new ApiError(404, "Publish request not found for this course.");
-    }
-    return coursePublishRepository.delete(request.id);
+  async rejectRequest({ reqId, userId, notes }: { reqId: number; userId: number; notes?: string }) {
+    const existingRequest = await isExistingRequest(reqId);
+    return await coursePublishRepository.updateStatus({
+      id: existingRequest.id,
+      courseId: existingRequest.courseId,
+      data: {
+        status: "REJECTED",
+        notes: `${existingRequest.notes}\n\n[admin]:/REJECTED/ ${notes}`,
+        reviewedById: userId,
+      },
+    });
   },
 };

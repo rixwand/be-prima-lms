@@ -15,21 +15,22 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
       return res.status(400).json({ message: "Invalid courseId" });
     }
 
-    if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL)) {
-      req.course = { id: courseId };
-      return next();
-    }
-
     // TODO: if user role is member fetch into enrollment instead
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { id: true, ownerId: true },
+      select: { id: true, ownerId: true, status: true },
     });
-
-    console.log("course in requireCourseOwnership: ", course);
 
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
+    }
+
+    if (
+      req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) &&
+      (course.status == "PENDING" || course.status == "PUBLISHED")
+    ) {
+      req.course = { id: courseId, ownerId: course.ownerId };
+      return next();
     }
 
     if (course.ownerId !== user?.id) {

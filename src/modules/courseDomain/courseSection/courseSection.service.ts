@@ -1,7 +1,7 @@
 import { ApiError } from "../../../common/utils/http";
-import { courseSectionRepo } from "./courseSection.repository";
 import { lessonService } from "../lesson/lesson.service";
 import type { ILessonsCreate } from "../lesson/lesson.types";
+import { courseSectionRepo } from "./courseSection.repository";
 
 type ReorderNewLesson = {
   title: string;
@@ -26,16 +26,7 @@ function isExistingSection(item: ReorderItem): item is ReorderExistingSection {
 
 export const courseSectionService = {
   async listByCourse(courseId: number) {
-    const sections = await courseSectionRepo.getSectionsWithLessons(courseId);
-    let courseTitle = sections[0]?.course?.title;
-    if (courseTitle === undefined) {
-      courseTitle = await courseSectionRepo.getCourseTitle(courseId);
-    }
-    const normalizedSections = sections.map(({ course, ...section }) => section);
-    return {
-      courseTitle,
-      sections: normalizedSections,
-    };
+    return courseSectionRepo.getSectionsWithLessons(courseId);
   },
 
   async appendSection(arrayTitle: string[], courseId: number) {

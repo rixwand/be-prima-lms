@@ -66,11 +66,6 @@ export const courseSectionRepo = {
         courseId: true,
         title: true,
         position: true,
-        course: {
-          select: {
-            title: true,
-          },
-        },
         lessons: {
           orderBy: { position: "asc" },
           select: {
