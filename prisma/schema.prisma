@@ -14,13 +14,6 @@ enum UserStatus {
   DISABLED
 }
 
-enum CourseStatus {
-  DRAFT
-  PUBLISHED
-  PENDING
-  REJECTED
-}
-
 enum BlockType {
   RICH_TEXT
   VIDEO
@@ -70,7 +63,7 @@ model User {
   fullName      String @map("full_name")
   email         String @unique
   username      String
-  profilePict   String @map("profile_picture") @default("user.jpg")
+  profilePict   String? @map("profile_picture")
   passwordHash  String @map("password_hash")
   roleId        Int
   status        UserStatus @default(NOT_VERIFIED)
@@ -123,7 +116,6 @@ model Course {
   id            Int @id @default(autoincrement())
   title         String 
   slug          String @unique
-  status        CourseStatus @default(DRAFT)
   ownerId       Int
   coverImage    String @map("cover_image")
   previewVideo  String? @map("preview_video")
@@ -133,13 +125,49 @@ model Course {
   isFree        Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  publishedAt   DateTime?
+  takenDownAt       DateTime? 
+  takenDownReason   String?
 
   owner         User  @relation("CourseOwner", fields: [ownerId], references: [id])
   sections      CourseSection[]
   tags          CourseTag[]   @relation("CourseTags")
+  categories    CourseCategory[]
   discount      CourseDiscount[]
   coursePublishRequest CoursePublishRequest?
+
+
+  metaDraft     CourseMetaDraft?
+  
   @@map("courses")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses   CourseCategory[]
+  courseDraft CourseDraftCategory[]
+
+  @@map("categories")
+}
+
+model CourseCategory {
+  courseId   Int
+  categoryId Int
+  isPrimary  Boolean @default(false)
+  position   Int?
+
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, categoryId])
+  @@index([categoryId])
+  @@map("course_categories")
 }
 
 
@@ -148,6 +176,7 @@ model Tag {
   name      String      @unique
   slug      String      @unique
   courses   CourseTag[] @relation("CourseTags")
+  courseDraft CourseDraftTag[]
 
   @@map("tags")
 }
@@ -170,6 +199,7 @@ model CourseSection {
   position      Int
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  publishedAt   DateTime?
 
   course        Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons Lesson[]
@@ -188,6 +218,7 @@ model Lesson {
   isPreview   Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
 
   section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   blocks      LessonBlock[]
@@ -208,6 +239,7 @@ model LessonBlock {
   meta        Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
 
   lesson      Lesson @relation(fields: [lessonId],references: [id], onDelete: Cascade)
 
@@ -248,10 +280,16 @@ enum PublishRequestStatus {
   REJECTED
 }
 
+enum CoursePublishType {
+  INITIAL
+  UPDATE
+}
+
 model CoursePublishRequest {
   id           Int       @id @default(autoincrement())
   courseId     Int       @unique
   course       Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  type         CoursePublishType @default(INITIAL)
   status       PublishRequestStatus @default(PENDING)
   notes        String?
   reviewedById Int?
@@ -261,3 +299,77 @@ model CoursePublishRequest {
   @@map("course_publish_requests")
 }
 
+
+
+model CourseMetaDraft {
+  id          Int @id @default(autoincrement())
+  courseId    Int @unique
+
+  // marketing / public metadata
+  title             String
+  shortDescription  String
+  descriptionJson   Json?
+  previewVideo      String?
+  coverImage        String
+  priceAmount       Int
+  isFree            Boolean
+
+  // relations (draft-owned)
+  draftTags        CourseDraftTag[]
+  draftCategories  CourseDraftCategory[]
+  draftDiscount    CourseDraftDiscount[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_meta_drafts")
+}
+
+
+model CourseDraftTag {
+  draftId Int
+  tagId   Int
+
+  draft   CourseMetaDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  tag     Tag             @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([draftId, tagId])
+  @@map("course_draft_tags")
+}
+
+model CourseDraftCategory {
+  draftId    Int
+  categoryId Int
+  isPrimary  Boolean @default(false)
+  position   Int?
+
+  draft     CourseMetaDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  category  Category        @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([draftId, categoryId])
+  @@index([categoryId])
+  @@map("course_draft_categories")
+}
+
+model CourseDraftDiscount {
+  id        Int @id @default(autoincrement())
+  draftId   Int
+
+  type      DiscountType
+  value     Int
+  startAt   DateTime?
+  endAt     DateTime?
+  isActive  Boolean @default(true)
+  label     String?
+
+  draft     CourseMetaDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([draftId, isActive])
+  @@index([draftId, startAt, endAt])
+  @@map("course_draft_discounts")
+}

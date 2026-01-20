@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../common/libs/prisma";
 import { ApiError } from "../../common/utils/http";
-import { IUserCreateEntity, IUserGetEntity, IUserUpdate } from "./user.types";
+import { IUserCreateEntity, IUserUpdate } from "./user.types";
 
 type IncludeArg<I extends Prisma.UserInclude> = { include: I; select?: never };
 type SelectArg<S extends Prisma.UserSelect> = { select: S; include?: never };
@@ -56,7 +56,7 @@ export const userRepo = {
     return res;
   },
 
-  async findByEmail(email: string): Promise<IUserGetEntity | null> {
+  async findByEmail(email: string) {
     return prisma.user.findUnique({ where: { email } });
   },
 

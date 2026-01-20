@@ -25,22 +25,28 @@ export const updateLessonSchema = yup
     "at-least-one-field",
     "At least one field must be provided",
     value => value != null && Object.keys(value).length > 0
-  );
+  )
+  .noUnknown()
+  .required();
 
-export const deleteManyLessonsSchema = yup.object({
-  ids: yup
-    .array()
-    .of(yup.number().integer().positive().required())
-    .min(1, "At least one id must be provided")
-    .required("ids field is required"),
-});
+export const deleteManyLessonsSchema = yup
+  .object({
+    ids: yup
+      .array()
+      .of(yup.number().integer().positive().required())
+      .min(1, "At least one id must be provided")
+      .required("ids field is required"),
+  })
+  .noUnknown()
+  .required();
 
 const reorderExistingLessonSchema = yup
   .object({
     id: yup.number().integer().positive().required(),
     position: yup.number().integer().positive().required(),
   })
-  .noUnknown(true);
+  .required()
+  .noUnknown();
 
 const reorderNewLessonSchema = yup
   .object({
@@ -54,7 +60,8 @@ const reorderNewLessonSchema = yup
     const candidate = value as { id?: unknown } | undefined;
     return candidate?.id === undefined;
   })
-  .noUnknown(true);
+  .noUnknown(true)
+  .required();
 
 export const reorderLessonsSchema = yup
   .object({
@@ -80,4 +87,5 @@ export const reorderLessonsSchema = yup
     const positions = value.reorders.map(r => Number(r.position));
     return positions.length === new Set(positions).size;
   })
+  .required()
   .noUnknown(true);

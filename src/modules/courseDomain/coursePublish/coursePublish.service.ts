@@ -5,7 +5,7 @@ import { GetCoursePublishRequestQueries, ICreateCoursePublishRequest } from "./c
 const isExistingRequest = async (reqId: number) => {
   const existingRequest = await coursePublishRepository.findById(reqId);
   if (!existingRequest) {
-    throw new ApiError(404, "A publish request for this course is not found.");
+    throw new ApiError(404, "Publish request not found.");
   } else return existingRequest;
 };
 
@@ -17,6 +17,14 @@ export const coursePublishService = {
     }
     if (existingRequest && existingRequest.status == "REJECTED") {
       data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
+      return coursePublishRepository.updateStatus({
+        courseId,
+        id: existingRequest.id,
+        data: {
+          notes: data.notes,
+          status: "PENDING",
+        },
+      });
     }
     return coursePublishRepository.create(
       {
@@ -64,4 +72,28 @@ export const coursePublishService = {
       },
     });
   },
+
+  async cancelRequest(courseId: number) {
+    const existingRequest = await coursePublishRepository.findByCourseId(courseId);
+    if (!existingRequest || existingRequest.status !== "PENDING")
+      throw new ApiError(404, "A pending publish request for this course is not found.");
+    if (existingRequest.reviewedById) {
+      return coursePublishRepository.cancelResubmittedRequest(courseId);
+    } else return coursePublishRepository.deleteRequest(courseId);
+  },
+
+  // async unPublish(courseId:number) {
+  //   const existingRequest = await coursePublishRepository.findByCourseId(courseId)
+  //   if(!existingRequest || existingRequest.status !== "APPROVED"){
+  //     throw new ApiError(404, "Course not found or its not published")
+  //   }
+  //   return coursePublishRepository.updateStatus({
+  //     id: existingRequest.id,
+  //     courseId: existingRequest.courseId,
+  //     data: {
+  //       status: "DRAFT",
+  //       notes: `${existingRequest.notes}\n\n[admin]:APPROVED`,
+  //     },
+  //   });
+  // }
 };

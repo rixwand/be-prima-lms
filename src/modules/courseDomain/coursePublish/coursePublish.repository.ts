@@ -42,7 +42,7 @@ export const coursePublishRepository = {
       await tx.course.update({
         where: { id: courseId },
         data: {
-          status: "PENDING",
+          publishedAt: new Date(),
         },
       });
       return newReq;
@@ -123,7 +123,7 @@ export const coursePublishRepository = {
           id: courseId,
         },
         data: {
-          status: data.status === "APPROVED" ? "PUBLISHED" : data.status,
+          ...(data.status == "APPROVED" && { publishedAt: new Date() }),
         },
         select: {
           title: true,
@@ -134,5 +134,28 @@ export const coursePublishRepository = {
         courseTitle: course.title,
       };
     });
+  },
+  async deleteRequest(courseId: number) {
+    const { course } = await prisma.coursePublishRequest.delete({
+      where: { courseId },
+      select: { course: { select: { title: true } } },
+    });
+    return { ...course };
+  },
+  async cancelResubmittedRequest(courseId: number) {
+    const recent = await prisma.coursePublishRequest.findUnique({ where: { courseId }, select: { notes: true } });
+    const {
+      course: { title },
+    } = await prisma.coursePublishRequest.update({
+      where: { courseId },
+      data: {
+        status: "REJECTED",
+        notes: `${recent?.notes}\n\n[instructor]:/CANCELED/`,
+      },
+      select: {
+        course: { select: { title: true } },
+      },
+    });
+    return { title };
   },
 };

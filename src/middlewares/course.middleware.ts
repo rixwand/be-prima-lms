@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../common/libs/prisma";
+import { getCourseStatus } from "../common/utils/course";
 import { validateIdParams } from "../common/utils/validation";
 import { AUTH } from "../config";
 
@@ -18,18 +19,23 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
     // TODO: if user role is member fetch into enrollment instead
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { id: true, ownerId: true, status: true },
+      select: {
+        id: true,
+        ownerId: true,
+        coursePublishRequest: { select: { id: true, status: true } },
+        publishedAt: true,
+        takenDownAt: true,
+      },
     });
+
+    // TODO: if course.takenDownAt then block user enrollment
 
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
 
-    if (
-      req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) &&
-      (course.status == "PENDING" || course.status == "PUBLISHED")
-    ) {
-      req.course = { id: courseId, ownerId: course.ownerId };
+    if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) && course.coursePublishRequest) {
+      req.course = { id: courseId, ownerId: course.ownerId, status: getCourseStatus(course) };
       return next();
     }
 
@@ -39,7 +45,7 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
 
     console.log("course in middlware: ", course);
 
-    req.course = course;
+    req.course = { id: courseId, ownerId: course.ownerId, status: getCourseStatus(course) };
     next();
   } catch (err) {
     next(err);

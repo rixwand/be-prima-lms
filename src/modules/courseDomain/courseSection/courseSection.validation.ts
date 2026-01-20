@@ -1,11 +1,17 @@
 import * as yup from "yup";
-export const createSectionSchema = yup.object({
-  arrayTitle: yup.array().of(yup.string().required()).min(1).required(),
-});
+export const createSectionSchema = yup
+  .object({
+    arrayTitle: yup.array().of(yup.string().required()).min(1).required(),
+  })
+  .noUnknown()
+  .required();
 
-export const updateSectionSchema = yup.object({
-  title: yup.string().required(),
-});
+export const updateSectionSchema = yup
+  .object({
+    title: yup.string().required(),
+  })
+  .noUnknown()
+  .required();
 
 const lessonWithinReorderSchema = yup
   .object({
@@ -14,6 +20,7 @@ const lessonWithinReorderSchema = yup
     durationSec: yup.number().optional(),
     isPreview: yup.boolean().optional(),
   })
+  .required()
   .noUnknown(true);
 
 const reorderExistingSectionSchema = yup
@@ -21,6 +28,7 @@ const reorderExistingSectionSchema = yup
     id: yup.number().integer().positive().required(),
     position: yup.number().integer().positive().required(),
   })
+  .required()
   .noUnknown(true);
 
 const reorderNewSectionSchema = yup
@@ -33,6 +41,7 @@ const reorderNewSectionSchema = yup
     const candidate = value as { id?: unknown } | undefined;
     return candidate?.id === undefined;
   })
+  .required()
   .noUnknown(true);
 
 export const reorderCourseSectionsSchema = yup
@@ -41,9 +50,7 @@ export const reorderCourseSectionsSchema = yup
       .array()
       .of(
         yup.lazy(value =>
-          value && value.id !== undefined && value.id !== null
-            ? reorderExistingSectionSchema
-            : reorderNewSectionSchema
+          value && value.id !== undefined && value.id !== null ? reorderExistingSectionSchema : reorderNewSectionSchema
         )
       )
       .min(1, "At least one reorder item is required")
@@ -60,12 +67,17 @@ export const reorderCourseSectionsSchema = yup
     if (!value?.reorders) return true;
     const positions = value.reorders.map(r => r.position);
     return positions.length === new Set(positions).size;
-  });
+  })
+  .noUnknown()
+  .required();
 
-export const deleteManyCourseSectionsSchema = yup.object({
-  ids: yup
-    .array()
-    .of(yup.number().integer().positive().required())
-    .min(1, "At least one id must be provided")
-    .required("ids field is required"),
-});
+export const deleteManyCourseSectionsSchema = yup
+  .object({
+    ids: yup
+      .array()
+      .of(yup.number().integer().positive().required())
+      .min(1, "At least one id must be provided")
+      .required("ids field is required"),
+  })
+  .noUnknown()
+  .required();

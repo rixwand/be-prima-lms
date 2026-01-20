@@ -4,6 +4,9 @@ import { courseService } from "./course.service";
 import {
   createCourseSchema,
   deleteManyCourseSchema,
+  listMyCoursesParamsSchema,
+  listPublicCoursesParamsSchema,
+  listPublicTagsParamsSchema,
   updateCourseSchema,
   updateCourseTagsSchema,
 } from "./course.validation";
@@ -14,16 +17,22 @@ const create: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data });
 };
 
-const list: AsyncRequestHandler = async (req, res) => {
-  const page = Number(req.params.page) || 1;
-  const limit = Number(req.params.page) || 10;
-  const result = await courseService.list(page, limit);
+const listPublicCourses: AsyncRequestHandler = async (req, res) => {
+  const { slug: primaryCategory } = await validateSlugParams(req.params.primaryCategory, { optional: true });
+  const params = await validate(listPublicCoursesParamsSchema, req.query);
+  const result = await courseService.listPublicCourses({ ...params, primaryCategory });
   res.status(200).json({ data: result });
+};
+
+const listPublicTags: AsyncRequestHandler = async (req, res) => {
+  const params = await validate(listPublicTagsParamsSchema, req.query);
+  const data = await courseService.listPublicTags(params);
+  res.status(200).json({ data });
 };
 
 const update: AsyncRequestHandler = async (req, res) => {
   const course = await validate(updateCourseSchema, req.body);
-  const data = await courseService.update(course, req.course?.id!);
+  const data = await courseService.update({ course, courseId: req.course?.id!, status: req.course?.status! });
   res.status(200).json({ data });
 };
 
@@ -44,13 +53,12 @@ const removeMany: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { message: `success remove ${count} course` } });
 };
 
-const myCourse: AsyncRequestHandler = async (req, res) => {
-  const page = Number(req.params.page) || 1;
-  const limit = Number(req.params.page) || 10;
-  const result = await courseService.myCourse({
+const myCourses: AsyncRequestHandler = async (req, res) => {
+  const params = await validate(listMyCoursesParamsSchema, req.query);
+  console.log("get course params", params);
+  const result = await courseService.myCourses({
     userId: req.user?.id!,
-    limit,
-    page,
+    params,
   });
   res.status(200).json({ data: result });
 };
@@ -76,13 +84,14 @@ const removeDiscount: AsyncRequestHandler = async (req, res) => {
 
 export const courseController = {
   create: asyncHandler(create),
-  list: asyncHandler(list),
+  listPublicCourses: asyncHandler(listPublicCourses),
   update: asyncHandler(update),
   updateTags: asyncHandler(updateTags),
   remove: asyncHandler(remove),
   removeMany: asyncHandler(removeMany),
-  myCourse: asyncHandler(myCourse),
+  myCourses: asyncHandler(myCourses),
   preview: asyncHandler(preview),
   get: asyncHandler(get),
   removeDiscount: asyncHandler(removeDiscount),
+  listPublicTags: asyncHandler(listPublicTags),
 };

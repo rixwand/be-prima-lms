@@ -5,8 +5,8 @@ export interface ICreateCoursePublishRequest extends InferType<typeof createCour
 
 export interface IUpdateStatusCoursePublishRequest {
   notes: string;
-  status: "APPROVED" | "REJECTED";
-  reviewedById: number;
+  status: "APPROVED" | "REJECTED" | "PENDING";
+  reviewedById?: number;
 }
 
 export interface GetCoursePublishRequestQueries extends InferType<typeof listCoursePublishRequestQueriesSchema> {}

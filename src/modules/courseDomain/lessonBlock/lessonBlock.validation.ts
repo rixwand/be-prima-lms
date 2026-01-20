@@ -28,7 +28,8 @@ export const createLessonBlockSchema = yup
     meta: yup.mixed().nullable().optional(),
   })
   .test("content-provided", "At least one of textJson, url, or meta must be provided", contentProvided)
-  .required();
+  .required()
+  .noUnknown();
 
 export const updateLessonBlockSchema = yup
   .object({
@@ -40,4 +41,6 @@ export const updateLessonBlockSchema = yup
   .test("some-field-provided", "At least one field must be provided", value => {
     if (!value) return false;
     return Object.values(value).some(v => v !== undefined);
-  });
+  })
+  .noUnknown()
+  .required();

@@ -23,19 +23,31 @@ const listRequest: AsyncRequestHandler = async (req, res) => {
 const approveRequest: AsyncRequestHandler = async (req, res) => {
   const { id: reqId } = await validateIdParams(req.params.requestId);
   const published = await coursePublishService.approveRequest({ reqId, userId: req.user?.id! });
-  res.status(200).json({ data: `course "${published.courseTitle}" has been published` });
+  res.status(200).json({ data: { message: `course "${published.courseTitle}" has been published` } });
 };
 
 const rejectRequest: AsyncRequestHandler = async (req, res) => {
   const { id: reqId } = await validateIdParams(req.params.requestId);
   const { notes } = await validate(notesCoursePublishRequestSchema, req.body);
   const published = await coursePublishService.rejectRequest({ reqId, userId: req.user?.id!, ...(notes && { notes }) });
-  res.status(200).json({ data: `course "${published.courseTitle}" has been rejected` });
+  res.status(200).json({ data: { message: `course "${published.courseTitle}" has been rejected` } });
 };
+
+const cancelRequest: AsyncRequestHandler = async (req, res) => {
+  const canceled = await coursePublishService.cancelRequest(req.course?.id!);
+  res.status(200).json({ data: { message: `Publish request for course ${canceled.title} is canceled` } });
+};
+
+// const unPublish: AsyncRequestHandler = async (req, res) => {
+//   const takenDown = await coursePublishService.unPublish(req.course?.id!);
+//   res.status(200).json({ data: { message: `course "${takenDown.title}" has been taken down` } });
+// };
 
 export const coursePublishController = {
   createRequest: asyncHandler(createRequest),
   listRequest: asyncHandler(listRequest),
   approveRequest: asyncHandler(approveRequest),
   rejectRequest: asyncHandler(rejectRequest),
+  cancelRequest: asyncHandler(cancelRequest),
+  // unPublish: asyncHandler(unPublish),
 };

@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { isUniqueConstraintError } from "./error";
 export function slugify(input: string): string {
@@ -42,3 +43,51 @@ export async function withUniqueSlug<T>(
 
   throw new Error("Failed to generate a unique slug after multiple attempts.");
 }
+
+export function buildStatusWhere(status?: string): Prisma.CourseWhereInput {
+  switch (status) {
+    case "DRAFT":
+      return {
+        publishedAt: null,
+        takenDownAt: null,
+        coursePublishRequest: null,
+      };
+
+    case "PENDING":
+      return {
+        coursePublishRequest: { status: "PENDING" },
+      };
+
+    case "REJECTED":
+      return {
+        coursePublishRequest: { status: "REJECTED" },
+      };
+
+    case "PUBLISHED":
+      return {
+        publishedAt: { not: null },
+        takenDownAt: null,
+        OR: [{ coursePublishRequest: null }, { coursePublishRequest: { status: "APPROVED" } }],
+      };
+
+    case "ARCHIVED":
+      return {
+        takenDownAt: { not: null },
+      };
+
+    default:
+      return {};
+  }
+}
+
+export const getCourseStatus = (course: {
+  takenDownAt?: Date | null;
+  coursePublishRequest?: { status: string } | null;
+  publishedAt?: Date | null;
+}) => {
+  if (course.takenDownAt) return "ARCHIVED";
+  if (course.coursePublishRequest?.status === "PENDING") return "PENDING";
+  if (course.coursePublishRequest?.status === "REJECTED") return "REJECTED";
+  if (course.publishedAt) return "PUBLISHED";
+  return "DRAFT";
+};

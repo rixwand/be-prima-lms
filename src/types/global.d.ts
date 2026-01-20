@@ -1,3 +1,5 @@
+import { CourseStatus } from "../modules/courseDomain/course/course.types";
+
 export type RequestUser = { id: number; role_id: number };
 declare global {
   namespace Express {
@@ -11,6 +13,7 @@ declare global {
       course?: {
         id: number;
         ownerId?: number;
+        status?: CourseStatus;
       };
       section?: { id: number; courseId: number };
       lesson?: { id: number; sectionId: number };

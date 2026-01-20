@@ -14,7 +14,7 @@ myCourse.use(authMiddleware);
 myCourse.get(
   "/",
   requirePermission(VIEW, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
-  courseController.myCourse
+  courseController.myCourses
 );
 myCourse.get(
   "/:courseId",
@@ -33,17 +33,46 @@ myCourse.post(
   requireCourseOwnership,
   coursePublishController.createRequest
 );
+myCourse.delete(
+  "/:courseId/cancel-publish",
+  requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  coursePublishController.cancelRequest
+);
+
+myCourse.patch(
+  "/:courseId/unpublish",
+  requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  courseController.update
+);
+
 myCourse.patch(
   "/:courseId",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.update
 );
+
+myCourse.patch(
+  "/:courseId/update-categories",
+  requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  courseController.updateTags
+);
+
 myCourse.patch(
   "/:courseId/tags",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.updateTags
+);
+
+myCourse.delete(
+  "/deleteMany",
+  requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  courseController.removeMany
 );
 
 myCourse.delete(
@@ -58,13 +87,6 @@ myCourse.delete(
   requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
   courseController.removeDiscount
-);
-
-myCourse.delete(
-  "/deleteMany",
-  requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
-  requireCourseOwnership,
-  courseController.removeMany
 );
 
 export default myCourse;
