@@ -1,5 +1,6 @@
 import { ApiError, AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
 import { validate, validateIdParams, validateSlugParams } from "../../../common/utils/validation";
+import courseDraftService from "../courseDraft/courseDraft.service";
 import { courseService } from "./course.service";
 import {
   createCourseSchema,
@@ -7,13 +8,14 @@ import {
   listMyCoursesParamsSchema,
   listPublicCoursesParamsSchema,
   listPublicTagsParamsSchema,
+  updateCourseCategoriesSchema,
   updateCourseSchema,
   updateCourseTagsSchema,
 } from "./course.validation";
 
 const create: AsyncRequestHandler = async (req, res) => {
   const course = await validate(createCourseSchema, req.body);
-  const data = await courseService.create(course, req.user?.id!);
+  const data = await courseDraftService.create(course, req.user?.id!);
   res.status(200).json({ data });
 };
 
@@ -32,19 +34,27 @@ const listPublicTags: AsyncRequestHandler = async (req, res) => {
 
 const update: AsyncRequestHandler = async (req, res) => {
   const course = await validate(updateCourseSchema, req.body);
-  const data = await courseService.update({ course, courseId: req.course?.id!, status: req.course?.status! });
+  const data = await courseDraftService.updateDraft({
+    course,
+    courseId: req.course?.id!,
+    draftId: req.course?.draftId!,
+  });
   res.status(200).json({ data });
 };
 
 const updateTags: AsyncRequestHandler = async (req, res) => {
   const tagObj = await validate(updateCourseTagsSchema, req.body);
-  const data = await courseService.updateTags(tagObj, req.course?.id!);
+  const data = await courseDraftService.updateDraftTags({
+    tagObj,
+    draftId: req.course?.draftId!,
+    courseId: req.course?.id!,
+  });
   res.status(200).json({ data });
 };
 
 const remove: AsyncRequestHandler = async (req, res) => {
-  const { id, title } = await courseService.remove(req.course?.id!);
-  res.status(200).json({ data: { removedId: id, message: `success remove course "${title}"` } });
+  const { id, metaDraft } = await courseService.remove(req.course?.id!);
+  res.status(200).json({ data: { removedId: id, message: `success remove course "${metaDraft?.title}"` } });
 };
 
 const removeMany: AsyncRequestHandler = async (req, res) => {
@@ -76,10 +86,25 @@ const get: AsyncRequestHandler = async (req, res) => {
 };
 
 const removeDiscount: AsyncRequestHandler = async (req, res) => {
-  const courseId = req.course?.id!;
+  const draftId = req.course?.draftId!;
   const { id } = await validateIdParams(req.params.discountId);
-  await courseService.removeDiscount({ courseId, id });
+  await courseDraftService.removeDiscount({ draftId, id });
   res.status(200).json({ message: "Successfully remove discount" });
+};
+
+const applyMetaDraft: AsyncRequestHandler = async (req, res) => {
+  await courseService.applyMetaDraft(req.course?.id!);
+  res.status(200).json({ message: "Publish draft changes success" });
+};
+
+const updateCategories: AsyncRequestHandler = async (req, res) => {
+  const { newCategories } = await validate(updateCourseCategoriesSchema, req.body);
+  const { created, removed } = await courseDraftService.updateCategories({
+    categories: newCategories,
+    courseId: req.course?.id!,
+    draftId: req.course?.draftId!,
+  });
+  res.status(200).json({ message: `add ${created} category and remove ${removed} category` });
 };
 
 export const courseController = {
@@ -94,4 +119,6 @@ export const courseController = {
   get: asyncHandler(get),
   removeDiscount: asyncHandler(removeDiscount),
   listPublicTags: asyncHandler(listPublicTags),
+  applyMetaDraft: asyncHandler(applyMetaDraft),
+  updateCategories: asyncHandler(updateCategories),
 };

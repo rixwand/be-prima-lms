@@ -19,12 +19,12 @@ async function findById(id: number): Promise<Prisma.CategoryGetPayload<{}> | nul
 
 async function findById<I extends Prisma.CategoryInclude>(
   id: number,
-  opts: IncludeArg<I>
+  opts: IncludeArg<I>,
 ): Promise<Prisma.CategoryGetPayload<{ include: I }> | null>;
 
 async function findById<S extends Prisma.CategorySelect>(
   id: number,
-  opts: SelectArg<S>
+  opts: SelectArg<S>,
 ): Promise<Prisma.CategoryGetPayload<{ select: S }> | null>;
 
 async function findById(id: number, opts?: any) {
@@ -48,12 +48,12 @@ async function findBySlug(slug: string): Promise<Prisma.CategoryGetPayload<{}> |
 
 async function findBySlug<I extends Prisma.CategoryInclude>(
   slug: string,
-  opts: IncludeArg<I>
+  opts: IncludeArg<I>,
 ): Promise<Prisma.CategoryGetPayload<{ include: I }> | null>;
 
 async function findBySlug<S extends Prisma.CategorySelect>(
   slug: string,
-  opts: SelectArg<S>
+  opts: SelectArg<S>,
 ): Promise<Prisma.CategoryGetPayload<{ select: S }> | null>;
 
 async function findBySlug(slug: string, opts?: any) {
@@ -118,6 +118,7 @@ export const courseCategoryRepo = {
       skip: (page - 1) * limit,
       orderBy: { name: "asc" },
       select: {
+        id: true,
         name: true,
         slug: true,
       },

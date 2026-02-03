@@ -1,18 +1,36 @@
 import * as yup from "yup";
-export const createLessonSchema = yup
-  .array()
-  .of(
-    yup
-      .object({
-        title: yup.string().required(),
-        summary: yup.string().optional(),
-        durationSec: yup.number().optional(),
-        isPreview: yup.boolean().default(false).optional(),
-      })
-      .required()
-  )
-  .min(1)
-  .required();
+
+const emptyDoc = { type: "doc", content: [] };
+
+const tiptapContentSchema = yup
+  .object({
+    type: yup.string().oneOf(["doc"]).required(),
+    content: yup.array().default([
+      {
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Coming soon...",
+          },
+        ],
+      },
+    ]),
+  })
+  .default(emptyDoc)
+  .optional();
+
+export const lessonSchema = yup
+  .object({
+    title: yup.string().required(),
+    summary: yup.string().optional(),
+    durationSec: yup.number().optional(),
+    isPreview: yup.boolean().default(false).optional(),
+    contentJson: tiptapContentSchema,
+  })
+  .noUnknown();
+
+export const createLessonSchema = yup.array().of(lessonSchema.required()).min(1).required();
 
 export const updateLessonSchema = yup
   .object({
@@ -20,11 +38,12 @@ export const updateLessonSchema = yup
     summary: yup.string().optional(),
     durationSec: yup.number().optional(),
     isPreview: yup.boolean().optional(),
+    contentJson: tiptapContentSchema,
   })
   .test(
     "at-least-one-field",
     "At least one field must be provided",
-    value => value != null && Object.keys(value).length > 0
+    value => value != null && Object.keys(value).length > 0,
   )
   .noUnknown()
   .required();
@@ -69,8 +88,8 @@ export const reorderLessonsSchema = yup
       .array()
       .of(
         yup.lazy(value =>
-          value && value.id !== undefined && value.id !== null ? reorderExistingLessonSchema : reorderNewLessonSchema
-        )
+          value && value.id !== undefined && value.id !== null ? reorderExistingLessonSchema : reorderNewLessonSchema,
+        ),
       )
       .min(1, "At least one reorder item is required")
       .required("reorders is required"),

@@ -20,7 +20,7 @@ function randomSuffix(length = 5): string {
 export async function withUniqueSlug<T>(
   tryCreate: (candidateSlug: string) => Promise<T>,
   baseSlug: string,
-  maxTries = 5
+  maxTries = 5,
 ): Promise<T> {
   let attempt = 0;
 
@@ -50,24 +50,24 @@ export function buildStatusWhere(status?: string): Prisma.CourseWhereInput {
       return {
         publishedAt: null,
         takenDownAt: null,
-        coursePublishRequest: null,
+        publishRequest: null,
       };
 
     case "PENDING":
       return {
-        coursePublishRequest: { status: "PENDING" },
+        publishRequest: { status: "PENDING" },
       };
 
     case "REJECTED":
       return {
-        coursePublishRequest: { status: "REJECTED" },
+        publishRequest: { status: "REJECTED" },
       };
 
     case "PUBLISHED":
       return {
         publishedAt: { not: null },
         takenDownAt: null,
-        OR: [{ coursePublishRequest: null }, { coursePublishRequest: { status: "APPROVED" } }],
+        OR: [{ publishRequest: null }, { publishRequest: { status: "APPROVED" } }],
       };
 
     case "ARCHIVED":
@@ -82,12 +82,12 @@ export function buildStatusWhere(status?: string): Prisma.CourseWhereInput {
 
 export const getCourseStatus = (course: {
   takenDownAt?: Date | null;
-  coursePublishRequest?: { status: string } | null;
+  publishRequest?: { status: string } | null;
   publishedAt?: Date | null;
 }) => {
   if (course.takenDownAt) return "ARCHIVED";
-  if (course.coursePublishRequest?.status === "PENDING") return "PENDING";
-  if (course.coursePublishRequest?.status === "REJECTED") return "REJECTED";
+  if (course.publishRequest?.status === "PENDING") return "PENDING";
+  if (course.publishRequest?.status === "REJECTED") return "REJECTED";
   if (course.publishedAt) return "PUBLISHED";
   return "DRAFT";
 };

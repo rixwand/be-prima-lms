@@ -1,94 +1,26 @@
-import { slugify } from "../../../common/utils/course";
-import { flattenObject, optionalizeUndefined } from "../../../common/utils/function";
+import { CourseMetaDraft } from "@prisma/client";
+import { flattenObject } from "../../../common/utils/function";
 import { ApiError } from "../../../common/utils/http";
-import { discountRepo } from "../courseDiscount/courseDiscount.repository";
-import { IUpdateDiscount } from "../courseDiscount/courseDiscount.types";
-import courseDraftRepo from "../courseDraft/courseDraft.repository";
-import { discountDraftRepo } from "../courseDraft/discountDraft.repository";
+// import { discountRepo } from "../courseDiscountDraft/courseDiscount.repository";
+import courseDraftRepo from "../courseDraft/metaDraft.repository";
 import { courseRepo } from "./course.repository";
 import {
-  CourseStatus,
-  ICourseCategoriesCreateEntity,
-  ICourseCreate,
-  ICourseUpdate,
-  ICourseUpdateTags,
   IListMyCourseParams,
   IListPublicCourseParams,
   IListPublicTagsParams,
+  MetaApprovedPayload,
 } from "./course.types";
 export const courseService = {
-  async create(course: ICourseCreate, ownerId: number) {
-    const { discount, tags, sections, categories, ...courseData } = course;
-    return courseRepo.create({
-      course: {
-        ...courseData,
-        ownerId,
-        slug: slugify(courseData.title),
-      },
-      tags,
-      categories,
-      sections,
-      discount: discount ? optionalizeUndefined(discount) : undefined,
-    });
-  },
-
-  async update({ course, courseId, status }: { course: ICourseUpdate; courseId: number; status: CourseStatus }) {
-    const { title, discounts, ...courseData } = course;
-    console.log("CourseStatus: ", status);
-    if (status == "PUBLISHED") {
-      let discountsRes;
-      if (discounts && discounts.length > 0) {
-        const draftId = await discountDraftRepo.ensureDiscountDraft(courseId);
-        discountsRes = await Promise.all(
-          discounts.map(async discount => {
-            await discountDraftRepo.upsert(discount as IUpdateDiscount, draftId);
-          }),
-        );
-      }
-      const draftId = await courseDraftRepo.upsertMeta({ courseId, data: { ...courseData, title } });
-      return { ...draftId, discounts: discountsRes };
-    } else {
-      const data = optionalizeUndefined(courseData);
-      if (discounts && discounts.length > 0) {
-        await Promise.all(
-          discounts.map(async discount => {
-            await discountRepo.upsert(discount as IUpdateDiscount, courseId);
-          }),
-        );
-      }
-      return courseRepo.update(
-        {
-          ...data,
-          ...(title ? { title, slug: slugify(title) } : {}),
-        },
-        courseId,
-      );
-    }
-  },
-
-  async updateTags(tagObj: ICourseUpdateTags, courseId: number) {
-    const { createOrConnect, disconnectSlugs } = tagObj;
-    let removed = 0;
-    if (disconnectSlugs && disconnectSlugs.length > 0) {
-      const { count } = await courseRepo.disconnectTagsBySlug(disconnectSlugs, courseId);
-      removed = +count;
-    }
-    let added = 0;
-    if (createOrConnect && createOrConnect.length > 0) {
-      await courseRepo.connectOrCreateTags(createOrConnect, courseId);
-      added = +createOrConnect.length;
-    }
-    return { message: `Success add ${added} tags and remove ${removed} tags` };
-  },
-
-  async updateCategories(courseId: number, categories: ICourseCategoriesCreateEntity) {
-    return courseRepo.updateCategories(courseId, categories);
+  async applyMetaDraft(courseId: number) {
+    const metaB = await courseDraftRepo.getMetaB(courseId);
+    if (!metaB) throw new ApiError(404, "Course draft not found");
+    return courseRepo.applyMetaDraft({ courseId, data: metaB, tier: "B" });
   },
 
   async listPublicCourses(params: IListPublicCourseParams) {
     const [courses, total] = await courseRepo.listPublicCourses(params);
     return {
-      courses,
+      courses: courses.map(c => ({ ...c, metaApproved: c.metaApproved?.payload })),
       meta: {
         total,
         page: params.page,
@@ -121,8 +53,17 @@ export const courseService = {
 
   async myCourses({ userId, params, params: { page, limit } }: { userId: number; params: IListMyCourseParams }) {
     const [courses, total] = await courseRepo.listCourseByUser({ userId, params });
+    const data = courses.map(c => {
+      return {
+        ...c,
+        canApplyTierB: computeRequiresApplyMeta({
+          draft: c.metaDraft!,
+          approved: c.metaApproved?.payload as MetaApprovedPayload,
+        }),
+      };
+    });
     return {
-      courses,
+      courses: data,
       meta: {
         total,
         page,
@@ -141,17 +82,25 @@ export const courseService = {
   async get(id: number) {
     const course = await courseRepo.findById(id, {
       include: {
-        coursePublishRequest: {
-          select: {
-            notes: true,
+        metaDraft: {
+          include: {
+            draftCategories: { omit: { draftId: true }, include: { category: { select: { name: true } } } },
+            draftTags: { select: { tag: true } },
+            draftDiscounts: true,
           },
         },
+        metaApproved: { select: { payload: true } },
+        publishRequest: {
+          select: { notes: true, id: true, status: true },
+        },
+        categories: { omit: { courseId: true }, include: { category: { select: { name: true } } } },
         tags: { select: { tag: true } },
-        discount: true,
+        discounts: true,
         sections: {
           include: {
             lessons: {
               orderBy: { position: "asc" },
+              omit: { contentDraft: true, contentLive: true },
             },
           },
           orderBy: { position: "asc" },
@@ -159,10 +108,42 @@ export const courseService = {
       },
     });
     if (!course) throw new ApiError(404, "Course not found");
-    return flattenObject(course);
+    const { metaApproved, metaDraft, tags, categories, ...data } = course;
+    const { draftCategories, draftDiscounts, draftTags, ...draft } = metaDraft!;
+    return {
+      ...data,
+      tags: tags.map(t => t.tag),
+      categories: categories.map(c => ({
+        id: c.categoryId,
+        name: c.category.name,
+        isPrimary: c.isPrimary,
+      })),
+      metaApproved: metaApproved?.payload,
+      metaDraft: {
+        ...metaDraft,
+        draftCategories: draftCategories.map(c => ({
+          id: c.categoryId,
+          name: c.category.name,
+          isPrimary: c.isPrimary,
+        })),
+        draftTags: draftTags.map(c => c.tag),
+      },
+      canApplyTierB: computeRequiresApplyMeta({ draft, approved: metaApproved?.payload as MetaApprovedPayload }),
+    };
   },
+};
 
-  async removeDiscount(props: { id: number; courseId: number }) {
-    return discountRepo.remove(props);
-  },
+const computeRequiresApplyMeta = ({ draft, approved }: { draft: CourseMetaDraft; approved?: MetaApprovedPayload }) => {
+  const TIER_B_FIELDS: (keyof MetaApprovedPayload)[] = [
+    "title",
+    "shortDescription",
+    "descriptionJson",
+    "coverImage",
+    "previewVideo",
+  ];
+  if (!approved) return false;
+
+  return TIER_B_FIELDS.some(field => {
+    return draft[field] !== approved[field];
+  });
 };

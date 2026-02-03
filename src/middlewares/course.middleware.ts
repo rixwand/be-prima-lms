@@ -4,7 +4,7 @@ import { getCourseStatus } from "../common/utils/course";
 import { validateIdParams } from "../common/utils/validation";
 import { AUTH } from "../config";
 
-type Level = "course" | "section" | "lesson" | "block";
+type Level = "course" | "section" | "lesson";
 
 export const requireCourseOwnership = async (req: Request, res: Response, next: NextFunction) => {
   console.log("req.authz: ", req.authz);
@@ -21,8 +21,9 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
       where: { id: courseId },
       select: {
         id: true,
+        metaDraft: { select: { id: true } },
         ownerId: true,
-        coursePublishRequest: { select: { id: true, status: true } },
+        publishRequest: { select: { id: true, status: true } },
         publishedAt: true,
         takenDownAt: true,
       },
@@ -34,8 +35,13 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
       return res.status(404).json({ message: "Course not found" });
     }
 
-    if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) && course.coursePublishRequest) {
-      req.course = { id: courseId, ownerId: course.ownerId, status: getCourseStatus(course) };
+    if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) && course.publishRequest) {
+      req.course = {
+        id: courseId,
+        ownerId: course.ownerId,
+        status: getCourseStatus(course),
+        draftId: course.metaDraft?.id!,
+      };
       return next();
     }
 
@@ -45,7 +51,12 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
 
     console.log("course in middlware: ", course);
 
-    req.course = { id: courseId, ownerId: course.ownerId, status: getCourseStatus(course) };
+    req.course = {
+      id: courseId,
+      ownerId: course.ownerId,
+      status: getCourseStatus(course),
+      draftId: course.metaDraft?.id!,
+    };
     next();
   } catch (err) {
     next(err);
@@ -57,16 +68,20 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
   try {
     const courseId = (await validateIdParams(req.params.courseId)).id;
     const sectionId = level !== "course" ? (await validateIdParams(req.params.sectionId)).id : null;
-    const lessonId = level === "lesson" || level === "block" ? (await validateIdParams(req.params.lessonId)).id : null;
-    const blockId = level === "block" ? (await validateIdParams(req.params.blockId)).id : null;
+    const lessonId = level === "lesson" ? (await validateIdParams(req.params.lessonId)).id : null;
 
     if (level === "course") {
       const course = await prisma.course.findFirst({
         where: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) },
-        select: { id: true, ownerId: true },
+        select: { id: true, ownerId: true, metaDraft: { select: { id: true } }, publishedAt: true },
       });
       if (!course) return notFound(res, "Course not found or not owned");
-      req.course = course;
+      req.course = {
+        id: course.id,
+        draftId: course.metaDraft?.id!,
+        ownerId: course.ownerId,
+        publishedAt: course.publishedAt,
+      };
       return next();
     }
 
@@ -79,74 +94,81 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
         select: {
           id: true,
           courseId: true,
-          course: { select: { id: true, ownerId: true } },
+          course: { select: { id: true, ownerId: true, publishedAt: true } },
+          publishedAt: true,
         },
       });
       if (!section) return notFound(res, "Section not found in this course or not owned");
-      req.section = { id: section.id, courseId: section.courseId };
-      req.course = { id: section.course.id, ownerId: section.course.ownerId };
+      req.section = { id: section.id, courseId: section.courseId, publishedAt: section.publishedAt };
+      req.course = { id: section.course.id, ownerId: section.course.ownerId, publishedAt: section.course.publishedAt };
       return next();
     }
 
-    if (level === "lesson") {
-      const lesson = await prisma.lesson.findFirst({
-        where: {
-          id: lessonId!,
-          section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
-        },
-        select: {
-          id: true,
-          sectionId: true,
-          section: {
-            select: {
-              id: true,
-              courseId: true,
-              course: { select: { id: true, ownerId: true } },
-            },
-          },
-        },
-      });
-      if (!lesson) return notFound(res, "Lesson not found in this section/course or not owned");
-      req.lesson = { id: lesson.id, sectionId: lesson.sectionId };
-      req.section = { id: lesson.section.id, courseId: lesson.section.courseId };
-      req.course = { id: lesson.section.course.id, ownerId: lesson.section.course.ownerId };
-      return next();
-    }
-
-    // level === "block"
-    const block = await prisma.lessonBlock.findFirst({
+    // if (level === "lesson") {
+    const lesson = await prisma.lesson.findFirst({
       where: {
-        id: blockId!,
-        lesson: {
-          id: lessonId!,
-          section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
-        },
+        id: lessonId!,
+        section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
       },
       select: {
         id: true,
-        lessonId: true,
-        lesson: {
+        sectionId: true,
+        section: {
           select: {
             id: true,
-            sectionId: true,
-            section: {
-              select: {
-                id: true,
-                courseId: true,
-                course: { select: { id: true, ownerId: true } },
-              },
-            },
+            courseId: true,
+            course: { select: { id: true, ownerId: true, publishedAt: true } },
+            publishedAt: true,
           },
         },
+        publishedAt: true,
       },
     });
+    if (!lesson) return notFound(res, "Lesson not found in this section/course or not owned");
+    req.lesson = { id: lesson.id, sectionId: lesson.sectionId, publishedAt: lesson.publishedAt };
+    req.section = { id: lesson.section.id, courseId: lesson.section.courseId, publishedAt: lesson.section.publishedAt };
+    req.course = {
+      id: lesson.section.course.id,
+      ownerId: lesson.section.course.ownerId,
+      publishedAt: lesson.section.course.publishedAt,
+    };
+    //   return next();
+    // }
 
-    if (!block) return notFound(res, "Lesson block not found in this hierarchy or not owned");
+    // level === "block"
+    // const block = await prisma.lessonBlock.findFirst({
+    //   where: {
+    //     id: blockId!,
+    //     lesson: {
+    //       id: lessonId!,
+    //       section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
+    //     },
+    //   },
+    //   select: {
+    //     id: true,
+    //     lessonId: true,
+    //     lesson: {
+    //       select: {
+    //         id: true,
+    //         sectionId: true,
+    //         section: {
+    //           select: {
+    //             id: true,
+    //             courseId: true,
+    //             course: { select: { id: true, ownerId: true } },
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    // });
 
-    req.block = { id: block.id, lessonId: block.lessonId };
-    req.lesson = { id: block.lesson.id, sectionId: block.lesson.sectionId };
-    req.section = { id: block.lesson.section.id, courseId: block.lesson.section.courseId };
-    req.course = { id: block.lesson.section.course.id, ownerId: block.lesson.section.course.ownerId };
+    // if (!block) return notFound(res, "Lesson block not found in this hierarchy or not owned");
+
+    // req.block = { id: block.id, lessonId: block.lessonId };
+    // req.lesson = { id: block.lesson.id, sectionId: block.lesson.sectionId };
+    // req.section = { id: block.lesson.section.id, courseId: block.lesson.section.courseId };
+    // req.course = { id: block.lesson.section.course.id, ownerId: block.lesson.section.course.ownerId };
 
     next();
   } catch (error) {

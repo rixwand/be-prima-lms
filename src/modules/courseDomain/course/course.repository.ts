@@ -1,7 +1,8 @@
-import { Prisma } from "@prisma/client";
-import { prisma } from "../../../common/libs/prisma";
+import { Course, CourseMetaApproved, Prisma } from "@prisma/client";
+import { PrismaTx, prisma } from "../../../common/libs/prisma";
 import { buildStatusWhere, slugify } from "../../../common/utils/course";
 import { OptionalizeUndefined, optionalizeUndefined } from "../../../common/utils/function";
+import { ApiError } from "../../../common/utils/http";
 import {
   ICourseCategoriesCreateEntity,
   ICourseCreateEntity,
@@ -10,6 +11,7 @@ import {
   IListMyCourseParams,
   IListPublicCourseParams,
   IListPublicTagsParams,
+  MetaApprovedPayload,
 } from "./course.types";
 
 type IncludeArg<I extends Prisma.CourseInclude> = { include: I; select?: never };
@@ -18,12 +20,12 @@ type SelectArg<S extends Prisma.CourseSelect> = { select: S; include?: never };
 async function findById(id: number): Promise<Prisma.CourseGetPayload<{}> | null>;
 async function findById<I extends Prisma.CourseInclude>(
   id: number,
-  opts: IncludeArg<I>
+  opts: IncludeArg<I>,
 ): Promise<Prisma.CourseGetPayload<{ include: I }> | null>;
 
 async function findById<S extends Prisma.CourseSelect>(
   id: number,
-  opts: SelectArg<S>
+  opts: SelectArg<S>,
 ): Promise<Prisma.CourseGetPayload<{ select: S }> | null>;
 
 // Implementation (note the union type matches the overload shapes)
@@ -44,6 +46,71 @@ async function findById(id: number, opts?: any) {
     });
 }
 
+type TierB = Partial<Omit<MetaApprovedPayload, "isFree" | "priceAmount">>;
+type TierC = Partial<Pick<MetaApprovedPayload, "isFree" | "priceAmount">> &
+  Partial<Pick<Prisma.CourseUpdateInput, "categories" | "discounts" | "tags">>;
+type ApplyMetaDraftParams =
+  | { courseId: number; tier: "B"; data: TierB; db?: PrismaTx }
+  | { courseId: number; tier: "C"; data: TierC; db?: PrismaTx };
+type UpdateApprovedReturn = CourseMetaApproved;
+type UpdateCourseReturn = Course;
+async function applyMetaDraft(params: {
+  courseId: number;
+  tier: "B";
+  data: TierB;
+  db?: PrismaTx;
+}): Promise<UpdateApprovedReturn>;
+
+async function applyMetaDraft(params: {
+  courseId: number;
+  tier: "C";
+  data: TierC;
+  db?: PrismaTx;
+}): Promise<UpdateCourseReturn>;
+
+async function applyMetaDraft({ courseId, data, tier, db = prisma }: ApplyMetaDraftParams) {
+  const approved = await db.courseMetaApproved.findUnique({ where: { courseId } });
+  if (!approved) throw new ApiError(404, "Course Not found or not publised yet");
+  if (!approved.payload || typeof approved.payload !== "object" || Array.isArray(approved.payload)) {
+    throw new ApiError(400, "Invalid approved meta payload");
+  }
+  const approvedPayload = approved.payload as MetaApprovedPayload;
+  if (tier == "B") {
+    return db.courseMetaApproved.update({
+      where: { courseId },
+      data: {
+        payload: {
+          ...approvedPayload,
+          ...data,
+        },
+      },
+    });
+  }
+  const { categories, discounts, tags, ...draftPayload } = data;
+  if (Object.keys(draftPayload).length > 0) {
+    await db.courseMetaApproved.update({
+      where: { courseId },
+      data: {
+        payload: {
+          ...approvedPayload,
+          ...draftPayload,
+        },
+      },
+    });
+  }
+
+  return db.course.update({
+    where: {
+      id: courseId,
+    },
+    data: {
+      ...(categories && { categories }),
+      ...(discounts && { discounts }),
+      ...(tags && { tags }),
+    },
+  });
+}
+
 export const courseRepo = {
   async create({
     course,
@@ -58,21 +125,36 @@ export const courseRepo = {
     sections: ICourseSectionsCreate;
     discount?: OptionalizeUndefined<ICourseDiscountCreate>;
   }) {
-    const data = optionalizeUndefined(course);
-    console.log(discount);
+    const { ownerId, slug, ...data } = optionalizeUndefined(course);
     return prisma.$transaction(async tx => {
       const course = await tx.course.create({
         data: {
-          ...data,
-          tags: {
-            create: tags.map(tag => ({
-              tag: {
-                connectOrCreate: {
-                  where: { slug: slugify(tag) },
-                  create: { name: tag, slug: slugify(tag) },
-                },
+          ownerId,
+          slug,
+          metaDraft: {
+            create: {
+              ...data,
+              draftTags: {
+                create: tags.map(tag => ({
+                  tag: {
+                    connectOrCreate: {
+                      where: { slug: slugify(tag) },
+                      create: { name: tag, slug: slugify(tag) },
+                    },
+                  },
+                })),
               },
-            })),
+              draftDiscounts: {
+                ...(discount
+                  ? {
+                      create: {
+                        ...discount,
+                        type: discount.type == "FIXED" ? "FIXED" : "PERCENTAGE",
+                      },
+                    }
+                  : {}),
+              },
+            },
           },
           ...(sections
             ? {
@@ -83,14 +165,12 @@ export const courseRepo = {
                     lessons: {
                       ...(lessons
                         ? {
-                            create: lessons.map((l, li) => {
-                              const lesson = optionalizeUndefined(l);
-                              return {
-                                ...lesson,
-                                position: li + 1,
-                                slug: slugify(l.title),
-                              };
-                            }),
+                            create: lessons.map(({ durationSec, summary, contentJson, ...lesson }, li) => ({
+                              ...lesson,
+                              contentLive: contentJson,
+                              slug: slugify(lesson.title),
+                              position: li + 1,
+                            })),
                           }
                         : {}),
                     },
@@ -98,48 +178,33 @@ export const courseRepo = {
                 },
               }
             : {}),
-          discount: {
-            ...(discount
-              ? {
-                  create: {
-                    ...discount,
-                    type: discount.type == "FIXED" ? "FIXED" : "PERCENTAGE",
-                  },
-                }
-              : {}),
-          },
         },
+        select: { metaDraft: { select: { id: true } } },
       });
-      await tx.courseCategory.createMany({
+      await tx.courseDraftCategory.createMany({
         data: ids.map(c_id => ({
           categoryId: c_id,
-          courseId: course.id,
+          draftId: course.metaDraft?.id!,
           isPrimary: c_id == primaryId,
         })),
       });
     });
   },
 
-  async update(course: Prisma.CourseUpdateWithoutTagsInput, id: number) {
-    return prisma.course.update({
-      where: { id },
-      data: course,
-    });
-  },
-
-  async updateCategories(courseId: number, { ids, primaryId }: ICourseCategoriesCreateEntity) {
+  async updateDraftCategories(draftId: number, { ids, primaryId }: ICourseCategoriesCreateEntity) {
     return prisma.$transaction(async tx => {
-      await tx.courseCategory.deleteMany({
-        where: { courseId },
+      const { count: removed } = await tx.courseDraftCategory.deleteMany({
+        where: { draftId },
       });
 
-      await tx.courseCategory.createMany({
+      const { count: created } = await tx.courseDraftCategory.createMany({
         data: ids.map(id => ({
-          courseId,
+          draftId,
           categoryId: id,
           isPrimary: id === primaryId,
         })),
       });
+      return { removed, created };
     });
   },
 
@@ -173,35 +238,7 @@ export const courseRepo = {
     ]);
   },
 
-  async disconnectTagsBySlug(slugs: string[], courseId: number) {
-    return prisma.courseTag.deleteMany({
-      where: { courseId, tag: { slug: { in: slugs } } },
-    });
-  },
-
-  async connectOrCreateTags(tags: string[], id: number) {
-    return prisma.course.update({
-      where: { id },
-      data: {
-        tags: {
-          create: tags.map(tag => ({
-            tag: {
-              connectOrCreate: {
-                where: { slug: slugify(tag) },
-                create: { name: tag, slug: slugify(tag) },
-              },
-            },
-          })),
-        },
-      },
-    });
-  },
-
   findById,
-
-  async countAll() {
-    return prisma.course.count();
-  },
 
   async listPublicCourses({
     isFree,
@@ -215,8 +252,27 @@ export const courseRepo = {
     const where: Prisma.CourseWhereInput = {
       publishedAt: { not: null },
       takenDownAt: null,
-      isFree,
-      ...(search && { title: { contains: search, mode: "insensitive" } }),
+      metaApproved: {
+        AND: [
+          search
+            ? {
+                payload: {
+                  path: ["title"],
+                  string_contains: search,
+                  mode: "insensitive",
+                },
+              }
+            : {},
+          isFree
+            ? {
+                payload: {
+                  path: ["isFree"],
+                  equals: isFree,
+                },
+              }
+            : {},
+        ],
+      },
       ...(tagSlugs &&
         tagSlugs.length > 0 && {
           tags: {
@@ -250,6 +306,7 @@ export const courseRepo = {
       prisma.course.findMany({
         where,
         include: {
+          metaApproved: { select: { payload: true } },
           owner: {
             select: {
               fullName: true,
@@ -257,7 +314,7 @@ export const courseRepo = {
               profilePict: true,
             },
           },
-          discount: true,
+          discounts: true,
         },
         take: limit,
         skip: (page - 1) * limit,
@@ -271,7 +328,8 @@ export const courseRepo = {
 
   async remove(id: number) {
     return prisma.course.delete({
-      where: { id },
+      where: { id, publishedAt: null, takenDownAt: null },
+      include: { metaDraft: true },
     });
   },
 
@@ -279,6 +337,8 @@ export const courseRepo = {
     return prisma.course.deleteMany({
       where: {
         id: { in: ids },
+        publishedAt: null,
+        takenDownAt: null,
       },
     });
   },
@@ -296,8 +356,22 @@ export const courseRepo = {
         ...(startDate && { gte: startDate }),
         ...(endDate && { lte: endDate }),
       },
-      ...(search && { title: { contains: search, mode: "insensitive" } }),
       ...statusWhere,
+      metaDraft: {
+        ...(search && {
+          OR: [
+            {
+              title: { contains: search, mode: "insensitive" },
+            },
+            {
+              draftTags: { some: { tag: { name: { contains: search, mode: "insensitive" } } } },
+            },
+            {
+              draftCategories: { some: { category: { name: { contains: search, mode: "insensitive" } } } },
+            },
+          ],
+        }),
+      },
     };
     return Promise.all([
       prisma.course.findMany({
@@ -306,12 +380,18 @@ export const courseRepo = {
           ...filter,
         },
         include: {
-          discount: true,
-          coursePublishRequest: {
-            select: { status: true },
+          publishRequest: {
+            select: { status: true, id: true, notes: true },
           },
+          metaDraft: {
+            include: {
+              draftDiscounts: true,
+              draftCategories: { select: { category: true } },
+              draftTags: { select: { tag: true } },
+            },
+          },
+          metaApproved: true,
         },
-        omit: { descriptionJson: true, shortDescription: true, ownerId: true, previewVideo: true },
         take: limit,
         skip: (page - 1) * limit,
       }),
@@ -327,13 +407,67 @@ export const courseRepo = {
     return prisma.course.findUnique({
       where: { slug },
       include: {
+        metaApproved: { select: { payload: true } },
         tags: { select: { tag: { select: { name: true } } } },
         sections: {
           select: { title: true, lessons: { select: { title: true }, orderBy: { position: "asc" } } },
           orderBy: { position: "asc" },
         },
-        discount: true,
+        discounts: true,
       },
     });
+  },
+
+  async publishCourse({ id, db = prisma }: { id: number; db?: PrismaTx }) {
+    const draft = await db.course.findUnique({
+      where: { id },
+      select: {
+        metaDraft: {
+          omit: { courseId: true, createdAt: true, id: true, updatedAt: true },
+          include: { draftCategories: true, draftDiscounts: true, draftTags: true },
+        },
+      },
+    });
+    const { draftCategories, draftDiscounts, draftTags, ...payload } = draft?.metaDraft!;
+
+    await db.course.update({
+      where: { id },
+      data: {
+        metaApproved: { create: { payload, approvedAt: new Date() } },
+        publishedAt: new Date(),
+        categories: { create: draftCategories.map(({ draftId, ...dc }) => ({ ...dc })) },
+        tags: { create: draftTags.map(({ tagId }) => ({ tagId })) },
+        discounts: { create: draftDiscounts.map(({ draftId, ...dd }) => ({ ...dd })) },
+      },
+    });
+
+    await db.courseMetaDraft.update({
+      where: { courseId: id },
+      data: { requiresApproval: false },
+    });
+    return { courseTitle: draft?.metaDraft?.title! };
+  },
+
+  async cleanConnection(courseId: number, db: PrismaTx = prisma) {
+    return Promise.all([
+      db.courseCategory.deleteMany({ where: { courseId } }),
+      db.courseTag.deleteMany({ where: { courseId } }),
+      db.courseDiscount.deleteMany({ where: { courseId } }),
+    ]);
+  },
+
+  applyMetaDraft,
+  async getApprovedMeta(courseId: number) {
+    const draftMeta = await prisma.courseMetaApproved.findUnique({ where: { courseId } });
+    return draftMeta?.payload;
+  },
+  async getApprovedDiscount(courseId: number) {
+    return prisma.courseDiscount.findMany({ where: { courseId } });
+  },
+  async getApprovedCategories(courseId: number) {
+    return prisma.courseCategory.findMany({ where: { courseId }, omit: { courseId: true } });
+  },
+  async getApprovedTags(courseId: number) {
+    return prisma.courseTag.findMany({ where: { courseId }, select: { tagId: true } });
   },
 };

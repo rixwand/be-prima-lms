@@ -22,6 +22,9 @@ function isExistingLesson(item: LessonReorderItem): item is ReorderExistingLesso
 }
 
 export const lessonService = {
+  async getContent(props: { id: number; sectionId: number }) {
+    return lessonRepo.getContent(props);
+  },
   async create(lessons: ILessonsCreate, sectionId: number) {
     await courseSectionRepo.findByIdOrThrow(sectionId);
     const { _max } = await lessonRepo.getMaxLessonPosition(sectionId);
@@ -41,18 +44,23 @@ export const lessonService = {
     return lessonRepo.createMany(lessonData);
   },
 
-  async update({ title, ...lesson }: ILessonUpdate, ids: { id: number; sectionId: number }) {
+  async update({ title, contentJson, ...lesson }: ILessonUpdate, ids: { id: number; sectionId: number }) {
     return lessonRepo.update(
-      optionalizeUndefined({
-        ...lesson,
-        title,
-        slug: title ? slugify(title) : undefined,
-      }),
-      ids
+      // optionalizeUndefined({
+      //   ...lesson,
+      //   title,
+      //   slug: title ? slugify(title) : undefined,
+      // }),
+      {
+        ...optionalizeUndefined(lesson),
+        ...(title ? { title, slug: slugify(title) } : {}),
+        contentDraft: contentJson,
+      },
+      ids,
     );
   },
 
-  async remove(props: { id: number; sectionId: number }) {
+  async remove(props: { id: number; sectionId: number; publishedAt: Date | null }) {
     return lessonRepo.remove(props);
   },
 

@@ -1,5 +1,5 @@
 import { InferType } from "yup";
-import { createLessonSchema, updateLessonSchema } from "./lesson.validation";
+import { createLessonSchema, lessonSchema, updateLessonSchema } from "./lesson.validation";
 
 export interface ILessonsCreate extends InferType<typeof createLessonSchema> {}
 
@@ -10,5 +10,7 @@ export interface ILessonCreateEntity extends Omit<ILessonsCreate[number], "durat
   position: number;
   slug: string;
 }
+
+export interface ILessonPayload extends InferType<typeof lessonSchema> {}
 
 export interface ILessonUpdate extends InferType<typeof updateLessonSchema> {}

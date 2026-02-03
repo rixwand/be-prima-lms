@@ -1,6 +1,7 @@
 import { $Enums } from "@prisma/client";
 import * as yup from "yup";
 import { slugify } from "../../../common/utils/course";
+import { lessonSchema } from "../lesson/lesson.validation";
 import { COURSE_STATUS, CourseStatus } from "./course.types";
 
 const DISCOUNT_TYPES = Object.values($Enums.DiscountType) as readonly $Enums.DiscountType[];
@@ -40,16 +41,7 @@ export const createCourseSchema = yup
       .array(
         yup.object({
           title: yup.string().required(),
-          lessons: yup
-            .array(
-              yup.object({
-                title: yup.string().required(),
-                summary: yup.string().optional(),
-                durationSec: yup.number().optional(),
-                isPreview: yup.boolean().default(false).optional(),
-              }),
-            )
-            .optional(),
+          lessons: yup.array(lessonSchema).optional(),
         }),
       )
       .optional(),
@@ -99,7 +91,7 @@ export const updateCourseSchema = yup
               otherwise: s => s.positive(),
             }),
           label: yup.string().optional(),
-          isActive: yup.boolean().default(true).optional(),
+          isActive: yup.boolean().optional(),
           startAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
           endAt: yup.date().min(new Date(), "must be equal or greater than the current time").optional(),
         }),

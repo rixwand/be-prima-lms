@@ -14,79 +14,86 @@ myCourse.use(authMiddleware);
 myCourse.get(
   "/",
   requirePermission(VIEW, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
-  courseController.myCourses
+  courseController.myCourses,
 );
 myCourse.get(
   "/:courseId",
   requirePermission(VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireCourseOwnership,
-  courseController.get
+  courseController.get,
 );
 myCourse.post(
   "/",
   requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
-  courseController.create
+  courseController.create,
 );
 myCourse.post(
   "/:courseId/publish",
   requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  coursePublishController.createRequest
+  coursePublishController.createRequest,
 );
 myCourse.delete(
   "/:courseId/cancel-publish",
   requirePermission(CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  coursePublishController.cancelRequest
+  coursePublishController.cancelRequest,
 );
 
 myCourse.patch(
   "/:courseId/unpublish",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.update
+  courseController.update,
+);
+
+myCourse.patch(
+  "/:courseId/apply-draft",
+  requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  courseController.applyMetaDraft,
 );
 
 myCourse.patch(
   "/:courseId",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.update
+  courseController.update,
 );
 
 myCourse.patch(
-  "/:courseId/update-categories",
+  "/:courseId/categories",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.updateTags
+  courseController.updateCategories,
 );
 
 myCourse.patch(
   "/:courseId/tags",
   requirePermission(EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.updateTags
+  courseController.updateTags,
 );
 
 myCourse.delete(
   "/deleteMany",
   requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.removeMany
+  courseController.removeMany,
 );
 
 myCourse.delete(
   "/:courseId",
   requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.remove
+  courseController.remove,
 );
 
 myCourse.delete(
   "/:courseId/discounts/:discountId",
   requirePermission(DELETE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireCourseOwnership,
-  courseController.removeDiscount
+  courseController.removeDiscount,
 );
 
 export default myCourse;

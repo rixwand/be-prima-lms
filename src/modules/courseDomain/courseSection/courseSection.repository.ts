@@ -6,14 +6,14 @@ type SectionRow = { id: number; position: number };
 
 async function getSectionsForCourse<T extends Prisma.CourseSectionSelect>(
   courseId: number,
-  select: T
+  select: T,
 ): Promise<Array<Prisma.CourseSectionGetPayload<{ select: T }>>>;
 
 async function getSectionsForCourse(courseId: number): Promise<Array<Prisma.CourseSectionGetPayload<{}>>>;
 
 async function getSectionsForCourse<T extends Prisma.CourseSectionSelect>(
   courseId: number,
-  select?: T
+  select?: T,
 ): Promise<Array<Prisma.CourseSectionGetPayload<{ select: T }> | Prisma.CourseSectionGetPayload<{}>>> {
   return prisma.courseSection.findMany({
     where: { courseId },
@@ -86,10 +86,16 @@ export const courseSectionRepo = {
   async getCourseTitle(courseId: number) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { title: true },
+      select: {
+        metaDraft: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
     if (!course) throw new ApiError(404, "Course not found");
-    return course.title;
+    return course.metaDraft?.title!;
   },
 
   async bulkApplyPositionsTwoPhase(courseId: number, items: SectionRow[]) {

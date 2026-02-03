@@ -14,9 +14,32 @@ export type LessonCreateInput = {
   position: number;
 };
 
+const defaultContent = [
+  {
+    type: "paragraph",
+    content: [
+      {
+        type: "text",
+        text: "Coming soon...",
+      },
+    ],
+  },
+];
+
 export const lessonRepo = {
+  async getContent(props: { id: number; sectionId: number }) {
+    return prisma.lesson.findUnique({
+      where: props,
+      select: {
+        contentDraft: true,
+        contentLive: true,
+      },
+    });
+  },
   async createMany(lessons: ILessonCreateEntity[]) {
-    return prisma.lesson.createMany({ data: lessons });
+    return prisma.lesson.createMany({
+      data: lessons.map(({ contentJson, ...l }) => ({ contentLive: contentJson, ...l })),
+    });
   },
 
   async getMaxLessonPosition(sectionId: number) {
@@ -33,16 +56,40 @@ export const lessonRepo = {
     });
   },
 
-  async remove(props: { id: number; sectionId: number }) {
-    return prisma.lesson.delete({ where: props });
+  // TODO: Soft delete if published at != nulL
+
+  async remove({ publishedAt, ...props }: { id: number; sectionId: number; publishedAt: Date | null }) {
+    if (publishedAt) {
+      return prisma.lesson.update({ where: props, data: { removedAt: new Date() } });
+    } else {
+      return prisma.lesson.delete({ where: props });
+    }
   },
 
   async removeMany({ ids, sectionId }: { ids: number[]; sectionId: number }) {
-    return prisma.lesson.deleteMany({
-      where: {
-        sectionId,
-        id: { in: ids },
-      },
+    const now = new Date();
+
+    return prisma.$transaction(async tx => {
+      const { count } = await tx.lesson.deleteMany({
+        where: {
+          id: { in: ids },
+          sectionId,
+          publishedAt: null,
+        },
+      });
+
+      const { count: updateCount } = await tx.lesson.updateMany({
+        where: {
+          id: { in: ids },
+          sectionId,
+          publishedAt: { not: null },
+          removedAt: null,
+        },
+        data: {
+          removedAt: now,
+        },
+      });
+      return { count: count + updateCount };
     });
   },
 
@@ -55,7 +102,7 @@ export const lessonRepo = {
 
   async getLessonsForSection(
     sectionId: number,
-    select: { id?: boolean; position?: boolean } = { id: true, position: true }
+    select: { id?: boolean; position?: boolean } = { id: true, position: true },
   ) {
     // Return array of { id, position }
     return prisma.lesson.findMany({
@@ -74,6 +121,7 @@ export const lessonRepo = {
         position: input.position,
         durationSec: input.durationSec ?? null,
         isPreview: input.isPreview ?? false,
+        contentLive: defaultContent,
       },
     });
   },

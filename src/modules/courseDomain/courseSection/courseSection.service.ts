@@ -1,20 +1,13 @@
 import { ApiError } from "../../../common/utils/http";
 import { lessonService } from "../lesson/lesson.service";
-import type { ILessonsCreate } from "../lesson/lesson.types";
+import type { ILessonPayload, ILessonsCreate } from "../lesson/lesson.types";
 import { courseSectionRepo } from "./courseSection.repository";
-
-type ReorderNewLesson = {
-  title: string;
-  summary?: string | undefined;
-  durationSec?: number | undefined;
-  isPreview?: boolean | undefined;
-};
 
 type ReorderExistingSection = { id: number; position: number };
 type ReorderNewSection = {
   position: number;
   title: string;
-  lessons?: ReorderNewLesson[] | undefined;
+  lessons?: ILessonPayload[] | undefined;
   id?: never;
 };
 
@@ -70,7 +63,7 @@ export const courseSectionService = {
 
     type FinalEntry =
       | { kind: "existing"; id: number }
-      | { kind: "new"; title: string; lessons?: ReorderNewLesson[] | undefined };
+      | { kind: "new"; title: string; lessons?: ILessonPayload[] | undefined };
 
     const placement: (FinalEntry | null)[] = Array.from({ length: totalSectionsAfterReorder }, () => null);
     const sortedReorders = [...listReorder].sort((a, b) => a.position - b.position);
@@ -127,6 +120,7 @@ export const courseSectionService = {
             summary: lesson.summary,
             durationSec: lesson.durationSec,
             isPreview: lesson.isPreview ?? false,
+            contentJson: lesson.contentJson,
           }));
           await lessonService.create(lessonsToCreate, createdSection.id);
         }

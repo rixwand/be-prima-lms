@@ -47,6 +47,14 @@ const reorder: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: { newOrder } });
 };
 
+const getContent: AsyncRequestHandler = async (req, res) => {
+  const data = await lessonService.getContent({
+    id: req.lesson?.id!,
+    sectionId: req.section?.id!,
+  });
+  res.status(200).json({ data });
+};
+
 export const lessonController = {
   create: asyncHandler(create),
   update: asyncHandler(update),
@@ -54,4 +62,5 @@ export const lessonController = {
   removeMany: asyncHandler(removeMany),
   list: asyncHandler(list),
   reorder: asyncHandler(reorder),
+  getContent: asyncHandler(getContent),
 };

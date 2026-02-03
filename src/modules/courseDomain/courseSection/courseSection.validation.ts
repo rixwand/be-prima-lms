@@ -1,4 +1,5 @@
 import * as yup from "yup";
+import { lessonSchema } from "../lesson/lesson.validation";
 export const createSectionSchema = yup
   .object({
     arrayTitle: yup.array().of(yup.string().required()).min(1).required(),
@@ -13,16 +14,6 @@ export const updateSectionSchema = yup
   .noUnknown()
   .required();
 
-const lessonWithinReorderSchema = yup
-  .object({
-    title: yup.string().required(),
-    summary: yup.string().optional(),
-    durationSec: yup.number().optional(),
-    isPreview: yup.boolean().optional(),
-  })
-  .required()
-  .noUnknown(true);
-
 const reorderExistingSectionSchema = yup
   .object({
     id: yup.number().integer().positive().required(),
@@ -35,7 +26,7 @@ const reorderNewSectionSchema = yup
   .object({
     position: yup.number().integer().positive().required(),
     title: yup.string().required(),
-    lessons: yup.array().of(lessonWithinReorderSchema).optional(),
+    lessons: yup.array().of(lessonSchema).optional(),
   })
   .test("no-id-field", "New sections must not include an id", value => {
     const candidate = value as { id?: unknown } | undefined;
@@ -50,8 +41,8 @@ export const reorderCourseSectionsSchema = yup
       .array()
       .of(
         yup.lazy(value =>
-          value && value.id !== undefined && value.id !== null ? reorderExistingSectionSchema : reorderNewSectionSchema
-        )
+          value && value.id !== undefined && value.id !== null ? reorderExistingSectionSchema : reorderNewSectionSchema,
+        ),
       )
       .min(1, "At least one reorder item is required")
       .required(),

@@ -1,15 +1,16 @@
+import { Prisma } from "@prisma/client";
 import { comparePassword, hashPassword } from "../../common/utils/hash";
 import { ApiError } from "../../common/utils/http";
 import { userRepo } from "./user.repository";
 import { IPasswordUpdate, IUserUpdate } from "./user.types";
 
-const selectUserData = {
+const selectUserData: Prisma.UserSelect = {
   id: true,
   fullName: true,
   username: true,
   email: true,
   profilePict: true,
-  roles: { select: { name: true } },
+  role: { select: { name: true } },
 };
 
 export const userService = {

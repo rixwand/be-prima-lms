@@ -8,7 +8,7 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
       if (!req.user) return res.status(401).json({ message: "Unauthorized" });
       const user = await userRepo.findById(req.user.id, {
         select: {
-          roles: {
+          role: {
             select: {
               perms: {
                 select: {
@@ -21,8 +21,8 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
           },
         },
       });
-      if (!user?.roles) return res.status(401).json({ message: "Unauthorized" });
-      const permissions = user.roles.perms.map(rp => rp.permission);
+      if (!user?.role) return res.status(401).json({ message: "Unauthorized" });
+      const permissions = user.role.perms.map(rp => rp.permission);
 
       const allowed = permissions.some(p => {
         if (p.action !== action) return false;

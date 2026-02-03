@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "../../../common/libs/prisma";
+import { prisma, PrismaTx } from "../../../common/libs/prisma";
 import { optionalizeUndefined } from "../../../common/utils/function";
 import {
   GetCoursePublishRequestQueries,
@@ -11,16 +11,26 @@ const selectCoursePublishReturn = {
   // select: {
   id: true,
   status: true,
-  createdAt: true,
   courseId: true,
+  createdAt: true,
+  notes: true,
+  type: true,
   course: {
     select: {
-      title: true,
-      coverImage: true,
       slug: true,
-      priceAmount: true,
-      isFree: true,
-      discount: true,
+      publishedAt: true,
+      metaDraft: {
+        select: {
+          title: true,
+          coverImage: true,
+          priceAmount: true,
+          isFree: true,
+          draftDiscounts: true,
+          draftCategories: { select: { category: true } },
+          draftTags: { select: { tag: true } },
+        },
+      },
+      discounts: true,
       owner: {
         select: { fullName: true, username: true, profilePict: true },
       },
@@ -35,22 +45,17 @@ export const coursePublishRepository = {
     return prisma.$transaction(async tx => {
       const newReq = await tx.coursePublishRequest.create({
         data: {
+          type: "NEW",
           course: { connect: { id: courseId } },
           notes: data.notes || null,
-        },
-      });
-      await tx.course.update({
-        where: { id: courseId },
-        data: {
-          publishedAt: new Date(),
         },
       });
       return newReq;
     });
   },
 
-  async findById(id: number) {
-    return prisma.coursePublishRequest.findUnique({
+  async findById(id: number, db: PrismaTx = prisma) {
+    return db.coursePublishRequest.findUnique({
       where: { id },
     });
   },
@@ -87,7 +92,7 @@ export const coursePublishRepository = {
 
     if (search) {
       where.OR = [
-        { course: { title: { contains: search, mode: "insensitive" } } },
+        { course: { metaDraft: { title: { contains: search, mode: "insensitive" } } } },
         { course: { owner: { fullName: { contains: search, mode: "insensitive" } } } },
       ];
     }
@@ -126,36 +131,55 @@ export const coursePublishRepository = {
           ...(data.status == "APPROVED" && { publishedAt: new Date() }),
         },
         select: {
-          title: true,
+          metaDraft: {
+            select: {
+              title: true,
+            },
+          },
         },
       });
       return {
         ...updated,
-        courseTitle: course.title,
+        courseTitle: course.metaDraft?.title!,
       };
     });
   },
   async deleteRequest(courseId: number) {
     const { course } = await prisma.coursePublishRequest.delete({
       where: { courseId },
-      select: { course: { select: { title: true } } },
+      select: { course: { select: { metaDraft: { select: { title: true } } } } },
     });
-    return { ...course };
+    return { title: course.metaDraft?.title! };
   },
   async cancelResubmittedRequest(courseId: number) {
     const recent = await prisma.coursePublishRequest.findUnique({ where: { courseId }, select: { notes: true } });
-    const {
-      course: { title },
-    } = await prisma.coursePublishRequest.update({
+    const { course } = await prisma.coursePublishRequest.update({
       where: { courseId },
       data: {
         status: "REJECTED",
         notes: `${recent?.notes}\n\n[instructor]:/CANCELED/`,
       },
       select: {
-        course: { select: { title: true } },
+        course: { select: { metaDraft: { select: { title: true } } } },
       },
     });
-    return { title };
+    return { title: course.metaDraft?.title! };
+  },
+
+  async approveRequest({
+    id,
+    notes,
+    adminId,
+    db = prisma,
+  }: {
+    id: number;
+    adminId: number;
+    notes: string | null;
+    db?: PrismaTx;
+  }) {
+    return db.coursePublishRequest.update({
+      where: { id },
+      data: { status: "APPROVED", notes: `${notes}\n\n[admin]:APPROVED`, reviewedById: adminId },
+    });
   },
 };

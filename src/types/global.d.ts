@@ -12,12 +12,13 @@ declare global {
       };
       course?: {
         id: number;
+        draftId?: number;
         ownerId?: number;
         status?: CourseStatus;
+        publishedAt?: Date | null;
       };
-      section?: { id: number; courseId: number };
-      lesson?: { id: number; sectionId: number };
-      block?: { id: number; lessonId: number };
+      section?: { id: number; courseId: number; publishedAt: Date | null };
+      lesson?: { id: number; sectionId: number; publishedAt: Date | null };
     }
   }
 }

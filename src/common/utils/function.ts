@@ -1,7 +1,7 @@
 export function flattenObject(
   obj: Record<string, any>,
   parentKey = "",
-  result: Record<string, any> = {}
+  result: Record<string, any> = {},
 ): Record<string, any> {
   for (const [key, value] of Object.entries(obj)) {
     const newKey = parentKey ? `${parentKey}${key[0]?.toUpperCase() + key.slice(1)}` : key;
@@ -65,4 +65,8 @@ export function applyPartialReorder(existing: rowOrder[], reorders: rowOrder[]):
   }
 
   return result as rowOrder[];
+}
+
+export function definedKeys<T extends object>(obj: T) {
+  return Object.keys(obj) as (keyof T)[];
 }
