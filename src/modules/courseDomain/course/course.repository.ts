@@ -1,6 +1,6 @@
 import { Course, CourseMetaApproved, Prisma } from "@prisma/client";
 import { PrismaTx, prisma } from "../../../common/libs/prisma";
-import { buildStatusWhere, slugify } from "../../../common/utils/course";
+import { buildStatusWhere, comingSoonLesson, slugify } from "../../../common/utils/course";
 import { OptionalizeUndefined, optionalizeUndefined } from "../../../common/utils/function";
 import { ApiError } from "../../../common/utils/http";
 import {
@@ -167,7 +167,8 @@ export const courseRepo = {
                         ? {
                             create: lessons.map(({ durationSec, summary, contentJson, ...lesson }, li) => ({
                               ...lesson,
-                              contentLive: contentJson,
+                              contentLive: comingSoonLesson,
+                              contentDraft: contentJson,
                               slug: slugify(lesson.title),
                               position: li + 1,
                             })),
@@ -408,13 +409,21 @@ export const courseRepo = {
       where: { slug },
       include: {
         metaApproved: { select: { payload: true } },
-        tags: { select: { tag: { select: { name: true } } } },
+        tags: { select: { tag: { select: { name: true, slug: true } } } },
+        categories: { select: { category: { select: { name: true, slug: true } } } },
         sections: {
           select: { title: true, lessons: { select: { title: true }, orderBy: { position: "asc" } } },
           orderBy: { position: "asc" },
         },
         discounts: true,
       },
+    });
+  },
+
+  async findEnrollmentBySlug(slug: string) {
+    return prisma.course.findUnique({
+      where: { slug },
+      select: { id: true, enrollments: { select: { userId: true } } },
     });
   },
 

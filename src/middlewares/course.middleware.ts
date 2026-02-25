@@ -1,13 +1,30 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../common/libs/prisma";
 import { getCourseStatus } from "../common/utils/course";
-import { validateIdParams } from "../common/utils/validation";
+import { validateIdParams, validateSlugParams } from "../common/utils/validation";
 import { AUTH } from "../config";
+import { courseRepo } from "../modules/courseDomain/course/course.repository";
 
 type Level = "course" | "section" | "lesson";
 
+export const requireCourseEnrollment = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    console.log("requireCourseEnrollment slug: ", req.params.courseSlug);
+    const { slug } = await validateSlugParams(req.params.courseSlug);
+    console.log("slug: ", slug);
+    const user = req.user;
+    const course = await courseRepo.findEnrollmentBySlug(slug);
+    if (!course) return res.status(404).json({ message: "Course not found" });
+    if (!course.enrollments.some(e => e.userId == user?.id!))
+      return res.status(404).json({ message: "Enrollment not found" });
+    req.course = { id: course.id };
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const requireCourseOwnership = async (req: Request, res: Response, next: NextFunction) => {
-  console.log("req.authz: ", req.authz);
   try {
     const user = req.user;
     const courseId = (await validateIdParams(req.params.courseId)).id;
@@ -81,6 +98,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
         draftId: course.metaDraft?.id!,
         ownerId: course.ownerId,
         publishedAt: course.publishedAt,
+        status: getCourseStatus(course),
       };
       return next();
     }
@@ -100,7 +118,12 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
       });
       if (!section) return notFound(res, "Section not found in this course or not owned");
       req.section = { id: section.id, courseId: section.courseId, publishedAt: section.publishedAt };
-      req.course = { id: section.course.id, ownerId: section.course.ownerId, publishedAt: section.course.publishedAt };
+      req.course = {
+        id: section.course.id,
+        ownerId: section.course.ownerId,
+        publishedAt: section.course.publishedAt,
+        status: getCourseStatus(section.course),
+      };
       return next();
     }
 
@@ -131,6 +154,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
       id: lesson.section.course.id,
       ownerId: lesson.section.course.ownerId,
       publishedAt: lesson.section.course.publishedAt,
+      status: getCourseStatus(lesson.section.course),
     };
     //   return next();
     // }

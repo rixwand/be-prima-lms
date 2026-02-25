@@ -13,7 +13,7 @@ userRoutes.patch("/update-password", userController.updatePassword);
 userRoutes.get(
   "/list",
   requirePermission(AUTH.ACTIONS.MANAGE, AUTH.RESOURCES.USER, { scope: AUTH.SCOPES.GLOBAL }),
-  userController.list
+  userController.list,
 );
 
 export default userRoutes;

@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "../../../common/libs/prisma";
+import { prisma, PrismaTx } from "../../../common/libs/prisma";
 import { ApiError } from "../../../common/utils/http";
 
 type SectionRow = { id: number; position: number };
@@ -131,6 +131,13 @@ export const courseSectionRepo = {
         id: { in: ids },
         courseId,
       },
+    });
+  },
+
+  async publish({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
+    return db.courseSection.update({
+      where: { id, courseId },
+      data: { publishedAt: new Date() },
     });
   },
 };

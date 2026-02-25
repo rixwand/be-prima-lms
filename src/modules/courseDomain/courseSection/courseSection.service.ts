@@ -1,6 +1,9 @@
+import { withTransaction } from "../../../common/libs/prisma/transaction";
 import { ApiError } from "../../../common/utils/http";
+import { CourseStatus } from "../course/course.types";
 import { lessonService } from "../lesson/lesson.service";
 import type { ILessonPayload, ILessonsCreate } from "../lesson/lesson.types";
+import lessonProgressRepository from "../lessonProgress/lessonProgress.repository";
 import { courseSectionRepo } from "./courseSection.repository";
 
 type ReorderExistingSection = { id: number; position: number };
@@ -140,5 +143,23 @@ export const courseSectionService = {
 
   async removeMany(props: { ids: number[]; courseId: number }) {
     return courseSectionRepo.removeMany(props);
+  },
+
+  async publish({
+    courseStatus,
+    ...props
+  }: {
+    courseId: number;
+    id: number;
+    publishedAt: Date | null;
+    courseStatus: CourseStatus;
+  }) {
+    if (props.publishedAt) throw new ApiError(400, "Section already published");
+    return withTransaction(async tx => {
+      const published = await courseSectionRepo.publish(props, tx);
+      if (courseStatus == "PUBLISHED")
+        await lessonProgressRepository.createPublishedSection({ courseId: props.courseId, sectionId: props.id }, tx);
+      return published;
+    });
   },
 };

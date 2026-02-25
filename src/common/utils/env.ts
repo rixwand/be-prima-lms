@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+export const XENDIT_SECRET_KEY: string = process.env.XENDIT_SECRET_KEY!;
+export const XENDIT_CALLBACK_TOKEN: string = process.env.XENDIT_CALLBACK_TOKEN!;
 export const ACCESS_TTL_SEC = parseInt(process.env.ACCESS_TTL_SEC!);
 export const REFRESH_TTL_SEC = parseInt(process.env.REFRESH_TTL_SEC!);
 export const JWT_ACCESS_SECRET: string = process.env.JWT_ACCESS_SECRET!;

@@ -65,6 +65,8 @@ model User {
   coursesOwned  Course[]   @relation("CourseOwner")
   reviewedPublishes CoursePublishRequest[] @relation("ReviewedCourses")
   mediaAssets   MediaAsset[]
+  orders        Order[]
+  enrollments   Enrollment[]
 
   @@map("users")
   activationTokens ActivationToken[]
@@ -157,7 +159,8 @@ model Course {
   sections      CourseSection[]
   discounts     CourseDiscount[]
   publishRequest CoursePublishRequest?
-
+  orders        Order[]
+  enrollments   Enrollment[]
   categories    CourseCategory[] @relation("CourseCategories")
   tags          CourseTag[] @relation("CourseTags")
 
@@ -335,7 +338,7 @@ model CourseSection {
   position  Int
 
   publishedAt DateTime?
-  removedAt   DateTime?   // 🔒 added
+  removedAt   DateTime?   
 
   course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons  Lesson[]
@@ -355,17 +358,18 @@ model Lesson {
   durationSec Int?
   isPreview   Boolean @default(false)
 
-  // 🔒 VISIBILITY FIX
-  contentDraft Json?      // instructor edits
+  // VISIBILITY FIX
+  contentDraft Json      // instructor edits
   contentLive  Json       // students read
 
   publishedAt DateTime?
-  removedAt   DateTime?   // 🔒 soft delete
+  removedAt   DateTime?   //  soft delete
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  lessonProgress LessonProgress[]
 
   @@unique([sectionId, position])
   @@unique([sectionId, slug])
@@ -411,4 +415,60 @@ model CoursePublishRequest {
   updatedAt    DateTime @updatedAt
 
   @@map("course_publish_requests")
+}
+
+// Payment
+
+model Order {
+  id        String   @id @default(uuid())
+  userId    Int
+  xenditId  String?
+  courseId  Int
+  amount    Int
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  course    Course      @relation(fields: [courseId], references: [id])
+
+  @@map("order")
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    Int
+  courseId  Int
+  createdAt DateTime @default(now())
+
+  user      User        @relation(fields: [userId], references: [id])
+  course    Course      @relation(fields: [courseId], references: [id])
+  lessonProgress LessonProgress[]
+
+  @@unique([userId, courseId])
+  @@map("enrollment")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum LessonProgressStatus {
+  PENDING
+  CURRENT
+  COMPLETED
+}
+
+model LessonProgress {
+  id            Int          @id @default(autoincrement())
+
+  lessonId      Int
+  enrollmentId  String
+
+  enrollment    Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson        Lesson      @relation(fields: [lessonId], references: [id],onDelete: Cascade)
+
+  status        LessonProgressStatus
+  @@unique([lessonId, enrollmentId])
 }

@@ -89,12 +89,12 @@ const removeDiscount: AsyncRequestHandler = async (req, res) => {
   const draftId = req.course?.draftId!;
   const { id } = await validateIdParams(req.params.discountId);
   await courseDraftService.removeDiscount({ draftId, id });
-  res.status(200).json({ message: "Successfully remove discount" });
+  res.status(200).json({ data: { message: "Successfully remove discount" } });
 };
 
 const applyMetaDraft: AsyncRequestHandler = async (req, res) => {
   await courseService.applyMetaDraft(req.course?.id!);
-  res.status(200).json({ message: "Publish draft changes success" });
+  res.status(200).json({ data: { message: "Publish draft changes success" } });
 };
 
 const updateCategories: AsyncRequestHandler = async (req, res) => {
@@ -104,7 +104,7 @@ const updateCategories: AsyncRequestHandler = async (req, res) => {
     courseId: req.course?.id!,
     draftId: req.course?.draftId!,
   });
-  res.status(200).json({ message: `add ${created} category and remove ${removed} category` });
+  res.status(200).json({ data: { message: `add ${created} category and remove ${removed} category` } });
 };
 
 export const courseController = {

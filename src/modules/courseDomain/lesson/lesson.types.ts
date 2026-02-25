@@ -1,5 +1,11 @@
 import { InferType } from "yup";
-import { createLessonSchema, lessonSchema, updateLessonSchema } from "./lesson.validation";
+import {
+  createLessonSchema,
+  lessonSchema,
+  publishContentShema,
+  reorderLessonsSchema,
+  updateLessonSchema,
+} from "./lesson.validation";
 
 export interface ILessonsCreate extends InferType<typeof createLessonSchema> {}
 
@@ -10,7 +16,7 @@ export interface ILessonCreateEntity extends Omit<ILessonsCreate[number], "durat
   position: number;
   slug: string;
 }
-
+export interface ILessonReorderPayload extends InferType<typeof reorderLessonsSchema> {}
 export interface ILessonPayload extends InferType<typeof lessonSchema> {}
-
+export interface ILessonPublishContent extends InferType<typeof publishContentShema> {}
 export interface ILessonUpdate extends InferType<typeof updateLessonSchema> {}

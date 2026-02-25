@@ -1,12 +1,17 @@
-import { slugify } from "../../../common/utils/course";
+import { isDeepStrictEqual } from "util";
+import { withTransaction } from "../../../common/libs/prisma/transaction";
+import { isEmptyTipTapDoc, slugify } from "../../../common/utils/course";
 import { optionalizeUndefined } from "../../../common/utils/function";
 import { ApiError } from "../../../common/utils/http";
+import { CourseStatus } from "../course/course.types";
 import { courseSectionRepo } from "../courseSection/courseSection.repository";
+import lessonProgressRepository from "../lessonProgress/lessonProgress.repository";
 import { lessonRepo } from "./lesson.repository";
-import { ILessonCreateEntity, ILessonsCreate, ILessonUpdate } from "./lesson.types";
+import { ILessonCreateEntity, ILessonPublishContent, ILessonUpdate, ILessonsCreate } from "./lesson.types";
 
 type ReorderExistingLesson = { id: number; position: number };
 type ReorderNewLesson = {
+  contentJson: { type: "doc"; content: any[] };
   position: number;
   title: string;
   summary?: string;
@@ -16,7 +21,7 @@ type ReorderNewLesson = {
 };
 
 export type LessonReorderItem = ReorderExistingLesson | ReorderNewLesson;
-
+type LessonContent = Awaited<ReturnType<typeof lessonRepo.getContent>>;
 function isExistingLesson(item: LessonReorderItem): item is ReorderExistingLesson {
   return (item as ReorderExistingLesson).id !== undefined;
 }
@@ -25,6 +30,36 @@ export const lessonService = {
   async getContent(props: { id: number; sectionId: number }) {
     return lessonRepo.getContent(props);
   },
+  async publishContent({
+    newDraft,
+    courseId,
+    courseStatus,
+    ...props
+  }: {
+    id: number;
+    sectionId: number;
+    newDraft?: ILessonPublishContent["newDraft"];
+    courseId: number;
+    courseStatus: CourseStatus;
+  }) {
+    return withTransaction(async tx => {
+      const content = newDraft
+        ? await lessonRepo.update({ contentDraft: newDraft }, props, tx)
+        : await lessonRepo.getContent(props, tx);
+      if (!content?.contentDraft || isEmptyTipTapDoc(content?.contentDraft))
+        throw new ApiError(400, "Cannot publish an empty draft");
+      if (isDeepStrictEqual(content?.contentLive, content?.contentDraft)) return "Content live is already up to date";
+      await lessonRepo.update(
+        { contentLive: content?.contentDraft!, publishedAt: content.publishedAt ?? new Date() },
+        props,
+        tx,
+      );
+      if (courseStatus == "PUBLISHED")
+        await lessonProgressRepository.createPublished({ courseId, lessonId: props.id }, tx);
+      return "Publish draft content success";
+    });
+  },
+
   async create(lessons: ILessonsCreate, sectionId: number) {
     await courseSectionRepo.findByIdOrThrow(sectionId);
     const { _max } = await lessonRepo.getMaxLessonPosition(sectionId);
@@ -46,11 +81,6 @@ export const lessonService = {
 
   async update({ title, contentJson, ...lesson }: ILessonUpdate, ids: { id: number; sectionId: number }) {
     return lessonRepo.update(
-      // optionalizeUndefined({
-      //   ...lesson,
-      //   title,
-      //   slug: title ? slugify(title) : undefined,
-      // }),
       {
         ...optionalizeUndefined(lesson),
         ...(title ? { title, slug: slugify(title) } : {}),
@@ -109,7 +139,14 @@ export const lessonService = {
     // 6) placement array
     type FinalEntry =
       | { kind: "existing"; id: number }
-      | { kind: "new"; title: string; summary?: string; durationSec?: number; isPreview?: boolean };
+      | {
+          kind: "new";
+          title: string;
+          summary?: string;
+          durationSec?: number;
+          isPreview?: boolean;
+          contentJson: { type: "doc"; content: any[] };
+        };
 
     const placement: (FinalEntry | null)[] = Array.from({ length: totalLessonsAfter }, () => null);
     const sortedReorders = [...listReorder].sort((a, b) => a.position - b.position);
@@ -169,10 +206,11 @@ export const lessonService = {
           sectionId,
           slug,
           title: entry.title,
-          summary: entry.summary ?? null,
-          durationSec: entry.durationSec ?? null,
+          summary: entry.summary,
+          durationSec: entry.durationSec,
           isPreview: entry.isPreview ?? false,
           position: provisionalPosition,
+          contentJson: entry.contentJson,
         });
 
         // optionally: create lesson blocks if provided — omitted because schema not included

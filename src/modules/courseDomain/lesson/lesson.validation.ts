@@ -1,21 +1,21 @@
 import * as yup from "yup";
 
-const emptyDoc = { type: "doc", content: [] };
+const emptyDoc = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      attrs: {
+        textAlign: null,
+      },
+    },
+  ],
+};
 
 const tiptapContentSchema = yup
   .object({
     type: yup.string().oneOf(["doc"]).required(),
-    content: yup.array().default([
-      {
-        type: "paragraph",
-        content: [
-          {
-            type: "text",
-            text: "Coming soon...",
-          },
-        ],
-      },
-    ]),
+    content: yup.array().required(),
   })
   .default(emptyDoc)
   .optional();
@@ -74,12 +74,12 @@ const reorderNewLessonSchema = yup
     summary: yup.string().optional(),
     durationSec: yup.number().integer().min(0).optional(),
     isPreview: yup.boolean().optional(),
+    contentJson: tiptapContentSchema,
   })
   .test("no-id-field", "New lessons must not include an id", value => {
     const candidate = value as { id?: unknown } | undefined;
     return candidate?.id === undefined;
   })
-  .noUnknown(true)
   .required();
 
 export const reorderLessonsSchema = yup
@@ -108,3 +108,16 @@ export const reorderLessonsSchema = yup
   })
   .required()
   .noUnknown(true);
+
+export const publishContentShema = yup
+  .object({
+    newDraft: yup
+      .object({
+        type: yup.string().oneOf(["doc"]).required(),
+        content: yup.array().required(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .required()
+  .noUnknown();

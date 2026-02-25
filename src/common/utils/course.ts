@@ -91,3 +91,27 @@ export const getCourseStatus = (course: {
   if (course.publishedAt) return "PUBLISHED";
   return "DRAFT";
 };
+
+export function isEmptyTipTapDoc(doc?: any | null): boolean {
+  if (!doc || doc.type !== "doc") return true;
+
+  if (!Array.isArray(doc.content)) return true;
+
+  if (doc.content.length === 0) return true;
+  return doc.content.every((c: any) => !Object.hasOwn(c, "content"));
+}
+
+export const comingSoonLesson = {
+  type: "doc",
+  content: [
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "text",
+          text: "Coming soon...",
+        },
+      ],
+    },
+  ],
+};

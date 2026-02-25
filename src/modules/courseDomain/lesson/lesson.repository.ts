@@ -1,44 +1,32 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "../../../common/libs/prisma";
+import { prisma, PrismaTx } from "../../../common/libs/prisma";
+import { comingSoonLesson } from "../../../common/utils/course";
 import { ApiError } from "../../../common/utils/http";
-import { ILessonCreateEntity } from "./lesson.types";
+import { ILessonCreateEntity, ILessonReorderPayload } from "./lesson.types";
 
 export type LessonRow = { id: number; position: number };
-export type LessonCreateInput = {
+export type LessonCreateInput = Extract<ILessonReorderPayload["reorders"][number], { summary?: string | undefined }> & {
   sectionId: number;
   slug: string;
-  title: string;
-  summary?: string | null;
-  durationSec?: number | null;
-  isPreview?: boolean;
-  position: number;
 };
-
-const defaultContent = [
-  {
-    type: "paragraph",
-    content: [
-      {
-        type: "text",
-        text: "Coming soon...",
-      },
-    ],
-  },
-];
-
 export const lessonRepo = {
-  async getContent(props: { id: number; sectionId: number }) {
-    return prisma.lesson.findUnique({
+  async getContent(props: { id: number; sectionId: number }, db: PrismaTx = prisma) {
+    return db.lesson.findUnique({
       where: props,
       select: {
         contentDraft: true,
         contentLive: true,
+        publishedAt: true,
       },
     });
   },
   async createMany(lessons: ILessonCreateEntity[]) {
     return prisma.lesson.createMany({
-      data: lessons.map(({ contentJson, ...l }) => ({ contentLive: contentJson, ...l })),
+      data: lessons.map(({ contentJson, ...l }) => ({
+        contentLive: comingSoonLesson,
+        contentDraft: contentJson,
+        ...l,
+      })),
     });
   },
 
@@ -49,8 +37,8 @@ export const lessonRepo = {
     });
   },
 
-  async update(lesson: Prisma.LessonUpdateInput, ids: { id: number; sectionId: number }) {
-    return prisma.lesson.update({
+  async update(lesson: Prisma.LessonUpdateInput, ids: { id: number; sectionId: number }, db: PrismaTx = prisma) {
+    return db.lesson.update({
       where: ids,
       data: lesson,
     });
@@ -121,7 +109,8 @@ export const lessonRepo = {
         position: input.position,
         durationSec: input.durationSec ?? null,
         isPreview: input.isPreview ?? false,
-        contentLive: defaultContent,
+        contentLive: comingSoonLesson,
+        contentDraft: input.contentJson,
       },
     });
   },

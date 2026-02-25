@@ -3,8 +3,8 @@ import { courseCategoryController } from "../courseCategories/courseCategories.c
 import { courseController } from "./course.controller";
 
 const courseRoutes = Router();
-
-courseRoutes.get("/public-courses{/:slug}", courseController.listPublicCourses);
+// /:slug is category slug
+courseRoutes.get("/list{/:slug}", courseController.listPublicCourses);
 courseRoutes.get("/list-tags", courseController.listPublicTags);
 courseRoutes.get("/list-categories", courseCategoryController.list);
 courseRoutes.get("/:courseSlug", courseController.preview);

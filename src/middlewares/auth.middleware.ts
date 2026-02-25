@@ -11,6 +11,7 @@ const authMiddleware: AsyncRequestHandler = async (req, _res, next) => {
   const [payload, error] = verifyAccessToken(token);
   if (error) throw new ApiError(401, "Invalid token");
   const user = await userRepo.findById(payload.sub, { select: { status: true, id: true, roleId: true } });
+  console.log("user middleware", user);
   if (!user) throw new ApiError(401, "Unathorized");
   if (user.status == "DISABLED") throw new ApiError(403, "Your account has been disabled. Please contact support.");
   // TODO: redirect user when its NOT_ACTIVATED

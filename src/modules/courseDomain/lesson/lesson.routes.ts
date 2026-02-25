@@ -8,7 +8,6 @@ import { lessonController } from "./lesson.controller";
 const lessonRoutes = Router({ mergeParams: true });
 
 lessonRoutes.use(authMiddleware);
-// lessonRoutes.use("/:lessonId/blocks", lessonBlockRoutes);
 lessonRoutes.get(
   "/",
   requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
@@ -22,9 +21,9 @@ lessonRoutes.post(
   lessonController.create,
 );
 
-lessonRoutes.post(
+lessonRoutes.get(
   "/:lessonId",
-  requirePermission(AUTH.ACTIONS.CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("lesson"),
   lessonController.getContent,
 );
@@ -34,6 +33,13 @@ lessonRoutes.patch(
   requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
   requireHierarcy("section"),
   lessonController.reorder,
+);
+
+lessonRoutes.post(
+  "/:lessonId/publish-content",
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireHierarcy("lesson"),
+  lessonController.publishContent,
 );
 
 lessonRoutes.patch(

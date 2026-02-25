@@ -28,6 +28,11 @@ const update: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data });
 };
 
+const publish: AsyncRequestHandler = async (req, res) => {
+  const { title } = await courseSectionService.publish({ courseStatus: req.course?.status!, ...req.section! });
+  res.status(200).json({ data: { message: `Success publish section "${title}"` } });
+};
+
 const reorder: AsyncRequestHandler = async (req, res) => {
   const { reorders } = await validate(reorderCourseSectionsSchema, req.body);
   const { newOrder } = await courseSectionService.reorder(req.course?.id!, reorders);
@@ -52,4 +57,5 @@ export const courseSectionController = {
   reorder: asyncHandler(reorder),
   remove: asyncHandler(remove),
   removeMany: asyncHandler(removeMany),
+  publish: asyncHandler(publish),
 };

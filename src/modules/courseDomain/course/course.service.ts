@@ -1,5 +1,4 @@
 import { CourseMetaDraft } from "@prisma/client";
-import { flattenObject } from "../../../common/utils/function";
 import { ApiError } from "../../../common/utils/http";
 // import { discountRepo } from "../courseDiscountDraft/courseDiscount.repository";
 import courseDraftRepo from "../courseDraft/metaDraft.repository";
@@ -76,7 +75,13 @@ export const courseService = {
   async getPreview(slug: string) {
     const course = await courseRepo.findBySlug(slug);
     if (!course) throw new ApiError(404, "Course not found");
-    return flattenObject(course);
+    const { metaApproved, tags, categories } = course;
+    return {
+      ...course,
+      metaApproved: metaApproved ? { ...(metaApproved.payload as Object) } : null,
+      tags: tags.map(t => ({ ...t.tag })),
+      categories: categories.map(c => ({ ...c.category })),
+    };
   },
 
   async get(id: number) {

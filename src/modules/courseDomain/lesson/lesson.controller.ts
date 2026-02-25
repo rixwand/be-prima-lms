@@ -4,6 +4,7 @@ import { LessonReorderItem, lessonService } from "./lesson.service";
 import {
   createLessonSchema,
   deleteManyLessonsSchema,
+  publishContentShema,
   reorderLessonsSchema,
   updateLessonSchema,
 } from "./lesson.validation";
@@ -55,6 +56,18 @@ const getContent: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data });
 };
 
+const publishContent: AsyncRequestHandler = async (req, res) => {
+  const { newDraft } = await validate(publishContentShema, req.body);
+  const message = await lessonService.publishContent({
+    id: req.lesson?.id!,
+    sectionId: req.lesson?.sectionId!,
+    newDraft,
+    courseId: req.course?.id!,
+    courseStatus: req.course?.status!,
+  });
+  res.status(200).json({ data: { message } });
+};
+
 export const lessonController = {
   create: asyncHandler(create),
   update: asyncHandler(update),
@@ -63,4 +76,5 @@ export const lessonController = {
   list: asyncHandler(list),
   reorder: asyncHandler(reorder),
   getContent: asyncHandler(getContent),
+  publishContent: asyncHandler(publishContent),
 };
