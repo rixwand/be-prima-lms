@@ -423,7 +423,7 @@ export const courseRepo = {
   async findEnrollmentBySlug(slug: string) {
     return prisma.course.findUnique({
       where: { slug },
-      select: { id: true, enrollments: { select: { userId: true } } },
+      select: { id: true, enrollments: { select: { userId: true, id: true } } },
     });
   },
 

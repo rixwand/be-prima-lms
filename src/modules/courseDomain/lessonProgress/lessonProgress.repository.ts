@@ -1,5 +1,6 @@
 import { Enrollment } from "@prisma/client";
 import { PrismaTx, prisma } from "../../../common/libs/prisma";
+import { ApiError } from "../../../common/utils/http";
 
 export default {
   async create({ courseId, enrollmentId }: { courseId: number; enrollmentId: string }, db: PrismaTx = prisma) {
@@ -10,10 +11,10 @@ export default {
     });
 
     return db.lessonProgress.createMany({
-      data: lessons.map(({ id }, i) => ({
+      data: lessons.map(({ id }) => ({
         enrollmentId,
         lessonId: id,
-        status: i == 0 ? "CURRENT" : "PENDING",
+        status: "PENDING",
       })),
     });
   },
@@ -45,6 +46,19 @@ export default {
         lessonId,
         status: "PENDING",
       })),
+      skipDuplicates: true,
+    });
+  },
+
+  async lessonComplete({ enrollmentId, lessonId }: { enrollmentId: string; lessonId: number }, db: PrismaTx = prisma) {
+    const lp = await db.lessonProgress.findUnique({
+      where: { lessonId_enrollmentId: { enrollmentId, lessonId } },
+    });
+    if (!lp) throw new ApiError(404, "lesson progress not found");
+    if (lp.status == "COMPLETED") return lp;
+    return db.lessonProgress.update({
+      where: { lessonId_enrollmentId: { enrollmentId, lessonId }, status: "PENDING" },
+      data: { status: "COMPLETED" },
     });
   },
 };

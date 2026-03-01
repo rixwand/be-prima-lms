@@ -444,6 +444,7 @@ model Enrollment {
   course    Course      @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
 
+  @@index([userId])
   @@unique([userId, courseId])
   @@map("enrollment")
 }
@@ -456,7 +457,6 @@ enum OrderStatus {
 
 enum LessonProgressStatus {
   PENDING
-  CURRENT
   COMPLETED
 }
 
@@ -470,5 +470,7 @@ model LessonProgress {
   lesson        Lesson      @relation(fields: [lessonId], references: [id],onDelete: Cascade)
 
   status        LessonProgressStatus
+  @@index([enrollmentId])
+  @@index([enrollmentId, status])
   @@unique([lessonId, enrollmentId])
 }

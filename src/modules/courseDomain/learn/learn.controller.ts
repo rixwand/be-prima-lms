@@ -17,7 +17,23 @@ const getLessonContent: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data: lessonContent });
 };
 
+const startCourse: AsyncRequestHandler = async (req, res) => {
+  const data = await learnService.startCourse({ courseId: req.course?.id!, userId: req.user?.id! });
+  res.status(200).json({ data });
+};
+const lessonComplete: AsyncRequestHandler = async (req, res) => {
+  const { id: lessonId } = await validateIdParams(req.params.lessonId);
+  const { lessonId: lId, status } = await learnService.lessonComplete({
+    courseId: req.course?.id!,
+    lessonId,
+    userId: req.user?.id!,
+  });
+  res.status(200).json({ data: { lessonId: lId, status } });
+};
+
 export default {
   getCurriculum: asyncHandler(getCurriculum),
   getLessonContent: asyncHandler(getLessonContent),
+  startCourse: asyncHandler(startCourse),
+  lessonComplete: asyncHandler(lessonComplete),
 };

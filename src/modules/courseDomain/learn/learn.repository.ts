@@ -35,4 +35,49 @@ export default {
       select: { contentLive: true },
     });
   },
+
+  async startCourse({ courseId, userId }: { courseId: number; userId: number }) {
+    return prisma.$transaction(async tx => {
+      // Get enrollment
+      const enrollment = await tx.enrollment.findUnique({
+        where: {
+          userId_courseId: {
+            userId,
+            courseId,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!enrollment) throw new Error("Not enrolled");
+
+      //  Find first NOT completed lesson
+      const nextLesson = await tx.lesson.findFirst({
+        where: {
+          section: { courseId },
+          lessonProgress: {
+            some: {
+              enrollmentId: enrollment.id,
+              status: { not: "COMPLETED" },
+            },
+          },
+        },
+        orderBy: [{ section: { position: "asc" } }, { position: "asc" }],
+        select: { slug: true },
+      });
+
+      // If everything completed → open last lesson
+      if (!nextLesson) {
+        return tx.lesson.findFirst({
+          where: {
+            section: { courseId },
+          },
+          orderBy: [{ section: { position: "desc" } }, { position: "desc" }],
+          select: { slug: true },
+        });
+      }
+
+      return nextLesson;
+    });
+  },
 };

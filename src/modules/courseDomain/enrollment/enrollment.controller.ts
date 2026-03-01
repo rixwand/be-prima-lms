@@ -4,8 +4,8 @@ import enrollmentService from "./enrollment.service";
 import { listEnrolledCourseParamsValidation } from "./enrollment.validation";
 
 const listEnrolledCourse: AsyncRequestHandler = async (req, res) => {
-  const { search } = await validate(listEnrolledCourseParamsValidation, req.query);
-  const data = await enrollmentService.list(req.user?.id!, search);
+  const { limit, page, search } = await validate(listEnrolledCourseParamsValidation, req.query);
+  const data = await enrollmentService.list(req.user?.id!, { ...(search && { search }), page, limit });
   res.status(200).json({ data });
 };
 
