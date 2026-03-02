@@ -71,6 +71,11 @@ export default {
         return tx.lesson.findFirst({
           where: {
             section: { courseId },
+            lessonProgress: {
+              some: {
+                enrollmentId: enrollment.id,
+              },
+            },
           },
           orderBy: [{ section: { position: "desc" } }, { position: "desc" }],
           select: { slug: true },

@@ -1,7 +1,7 @@
-import Xendit from "xendit-node";
 import { withTransaction } from "../../common/libs/prisma/transaction";
+import Invoice from "../../common/libs/xendit/invoice";
 import { calculateFinalPrice } from "../../common/utils/currency";
-import { CLIENT_URL, XENDIT_SECRET_KEY } from "../../common/utils/env";
+import { CLIENT_URL } from "../../common/utils/env";
 import { ApiError } from "../../common/utils/http";
 import { courseRepo } from "../courseDomain/course/course.repository";
 import { MetaApprovedPayload } from "../courseDomain/course/course.types";
@@ -12,9 +12,6 @@ import { userRepo } from "../users/user.repository";
 
 export default {
   async createInvoice({ courseId, userId, code }: { userId: number; courseId: number; code?: string }) {
-    const { Invoice } = new Xendit({
-      secretKey: XENDIT_SECRET_KEY,
-    });
     const course = await courseRepo.findById(courseId, {
       select: { metaApproved: { select: { payload: true } }, discounts: true, publishedAt: true, takenDownAt: true },
     });

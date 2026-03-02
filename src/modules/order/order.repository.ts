@@ -18,4 +18,8 @@ export default {
       data,
     });
   },
+
+  async list(userId: number) {
+    return prisma.order.findMany({ where: { userId } });
+  },
 };
