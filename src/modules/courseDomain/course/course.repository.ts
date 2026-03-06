@@ -382,7 +382,7 @@ export const courseRepo = {
         },
         include: {
           publishRequest: {
-            select: { status: true, id: true, notes: true },
+            select: { status: true, id: true, notes: true, type: true },
           },
           metaDraft: {
             include: {
@@ -412,7 +412,11 @@ export const courseRepo = {
         tags: { select: { tag: { select: { name: true, slug: true } } } },
         categories: { select: { category: { select: { name: true, slug: true } } } },
         sections: {
-          select: { title: true, lessons: { select: { title: true }, orderBy: { position: "asc" } } },
+          where: { publishedAt: { not: null } },
+          select: {
+            title: true,
+            lessons: { where: { publishedAt: { not: null } }, select: { title: true }, orderBy: { position: "asc" } },
+          },
           orderBy: { position: "asc" },
         },
         discounts: true,
@@ -452,7 +456,7 @@ export const courseRepo = {
 
     await db.courseMetaDraft.update({
       where: { courseId: id },
-      data: { requiresApproval: false },
+      data: { requiresApproval: [] },
     });
     return { courseTitle: draft?.metaDraft?.title! };
   },

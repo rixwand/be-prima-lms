@@ -1,4 +1,4 @@
-import { PublishRequestStatus } from "@prisma/client";
+import { $Enums, PublishRequestStatus } from "@prisma/client";
 import * as yup from "yup";
 
 export const createCoursePublishRequestSchema = yup
@@ -16,6 +16,7 @@ export const notesCoursePublishRequestSchema = yup
 export const listCoursePublishRequestQueriesSchema = yup
   .object({
     status: yup.mixed<PublishRequestStatus>().oneOf(Object.values(PublishRequestStatus)).optional(),
+    type: yup.mixed<$Enums.CoursePublishType>().oneOf(Object.values($Enums.CoursePublishType)).optional(),
     page: yup.number().integer().positive().optional(),
     limit: yup.number().integer().positive().optional(),
     startDate: yup.date().optional(),

@@ -59,7 +59,7 @@ export const courseSectionRepo = {
 
   async getSectionsWithLessons(courseId: number) {
     return prisma.courseSection.findMany({
-      where: { courseId },
+      where: { courseId, publishedAt: { not: null } },
       orderBy: { position: "asc" },
       select: {
         id: true,
@@ -67,6 +67,7 @@ export const courseSectionRepo = {
         title: true,
         position: true,
         lessons: {
+          where: { publishedAt: { not: null } },
           orderBy: { position: "asc" },
           select: {
             id: true,
@@ -138,6 +139,13 @@ export const courseSectionRepo = {
     return db.courseSection.update({
       where: { id, courseId },
       data: { publishedAt: new Date() },
+    });
+  },
+
+  async countLesson({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
+    return db.courseSection.findUnique({
+      where: { id, courseId },
+      select: { _count: { select: { lessons: { where: { publishedAt: { not: null } } } } } },
     });
   },
 };

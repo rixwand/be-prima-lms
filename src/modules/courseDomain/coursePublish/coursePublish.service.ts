@@ -100,7 +100,7 @@ export const coursePublishService = {
             notes: existingRequest.notes,
             db: tx,
           });
-          const { title } = await courseDraftRepo.updateMeta({ requiresApproval: false }, draftMetaC.id, tx);
+          const { title } = await courseDraftRepo.updateMeta({ requiresApproval: [] }, draftMetaC.id, tx);
           return { courseTitle: title };
         });
       }

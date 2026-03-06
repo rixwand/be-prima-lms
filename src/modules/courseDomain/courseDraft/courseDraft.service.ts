@@ -1,4 +1,5 @@
 import { Decimal } from "@prisma/client/runtime/library";
+import { withTransaction } from "../../../common/libs/prisma/transaction";
 import { slugify } from "../../../common/utils/course";
 import { definedKeys, optionalizeUndefined } from "../../../common/utils/function";
 import { courseRepo } from "../course/course.repository";
@@ -47,13 +48,21 @@ export default {
       const updatedDraftDiscount = await discountDraftRepo.get(draftId);
       requiresApproval = requiresApproval || !sameDiscounts(updatedDraftDiscount, approvedDiscounts);
     }
-    return courseDraftRepo.updateMeta(
-      {
-        ...data,
-        requiresApproval,
-      },
-      draftId,
-    );
+    return withTransaction(async tx => {
+      const draft = await courseDraftRepo.updateMeta(
+        {
+          ...data,
+        },
+        draftId,
+        tx,
+      );
+      if (requiresApproval) {
+        await courseDraftRepo.addApprovalField("META", draftId, tx);
+      } else {
+        await courseDraftRepo.removeApprovalField("META", draftId, tx);
+      }
+      return draft;
+    });
   },
 
   async updateDraftTags({
@@ -80,7 +89,9 @@ export default {
       const approvedTags = await courseRepo.getApprovedTags(courseId);
       const draftTags = await tagDraftRepository.getCourseDraftTags(draftId);
       if (!sameBy(approvedTags, draftTags, tag => tag.tagId)) {
-        await courseDraftRepo.updateMeta({ requiresApproval: true }, draftId);
+        await withTransaction(async tx => courseDraftRepo.addApprovalField("TAGS", draftId, tx));
+      } else {
+        await withTransaction(async tx => courseDraftRepo.removeApprovalField("TAGS", draftId, tx));
       }
     }
     return { message: `Success add ${added} tags and remove ${removed} tags` };
@@ -100,7 +111,9 @@ export default {
     const approved = await courseRepo.getApprovedCategories(courseId);
     console.log(approved, " equal ", updatedDraft, " = ", sameCategories(approved, updatedDraft));
     if (!sameCategories(approved, updatedDraft)) {
-      await courseDraftRepo.updateMeta({ requiresApproval: true }, draftId);
+      await withTransaction(async tx => courseDraftRepo.addApprovalField("CATEGORY", draftId, tx));
+    } else {
+      await withTransaction(async tx => courseDraftRepo.removeApprovalField("CATEGORY", draftId, tx));
     }
     return res;
   },

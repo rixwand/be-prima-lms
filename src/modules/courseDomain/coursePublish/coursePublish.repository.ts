@@ -67,7 +67,7 @@ export const coursePublishRepository = {
   },
 
   async listRequest(queries: GetCoursePublishRequestQueries) {
-    const { page = 1, limit = 10, status, startDate, endDate, search } = queries;
+    const { page = 1, limit = 10, status, startDate, endDate, search, type } = queries;
 
     const areFiltersApplied = status || startDate || endDate || search;
 
@@ -84,6 +84,7 @@ export const coursePublishRepository = {
 
     const where: Prisma.CoursePublishRequestWhereInput = {
       ...(status && { status }),
+      ...(type && { type }),
       createdAt: {
         ...(startDate && { gte: startDate }),
         ...(endDate && { lte: endDate }),

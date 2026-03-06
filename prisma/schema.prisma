@@ -29,6 +29,12 @@ enum CoursePublishType {
   UPDATE
 }
 
+enum ApprovalTarget {
+  META
+  TAGS
+  CATEGORY
+}
+
 enum DiscountType {
   PERCENTAGE
   FIXED
@@ -189,7 +195,7 @@ model CourseMetaDraft {
   previewVideo     String?
   priceAmount      Int
   isFree           Boolean
-  requiresApproval Boolean @default(false)
+  requiresApproval ApprovalTarget[] @default([])
 
   draftTags        CourseDraftTag[]
   draftCategories  CourseDraftCategory[]
@@ -422,16 +428,16 @@ model CoursePublishRequest {
 model Order {
   id        String   @id @default(uuid())
   userId    Int
-  xenditId  String?
   courseId  Int
   amount    Int
   status    OrderStatus @default(PENDING)
   createdAt DateTime @default(now())
+  invoice   Invoice[]
 
   user      User        @relation(fields: [userId], references: [id])
   course    Course      @relation(fields: [courseId], references: [id])
 
-  @@map("order")
+  @@map("orders")
 }
 
 model Enrollment {
@@ -446,7 +452,7 @@ model Enrollment {
 
   @@index([userId])
   @@unique([userId, courseId])
-  @@map("enrollment")
+  @@map("enrollments")
 }
 
 enum OrderStatus {
@@ -473,4 +479,34 @@ model LessonProgress {
   @@index([enrollmentId])
   @@index([enrollmentId, status])
   @@unique([lessonId, enrollmentId])
+  @@map("lesson_progress")
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  invoiceNumber String   @unique
+  xenditId      String?
+  orderId       String
+  amount        Int
+  status        InvoiceStatus
+  expiresAt     DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  EXPIRED
+  FAILED
+}
+
+model InvoiceCounter {
+  year Int @id
+  seq  Int @default(0)
 }

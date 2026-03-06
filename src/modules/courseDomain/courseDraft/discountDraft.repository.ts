@@ -2,22 +2,13 @@ import { prisma } from "../../../common/libs/prisma";
 import { IUpdateDiscount } from "../courseDiscountDraft/courseDiscount.types";
 
 export const discountDraftRepo = {
-  upsert: async ({
-    discount,
-    draftId,
-    requiresApproval,
-  }: {
-    discount: IUpdateDiscount;
-    draftId: number;
-    requiresApproval?: boolean;
-  }) => {
+  upsert: async ({ discount, draftId }: { discount: IUpdateDiscount; draftId: number }) => {
     const { id, ...data } = discount;
     if (id) {
       return prisma.courseDraftDiscount.update({
         where: { id, draftId },
         data: {
           ...data,
-          ...(typeof requiresApproval == "boolean" && { draft: { update: { requiresApproval } } }),
         },
       });
     } else {

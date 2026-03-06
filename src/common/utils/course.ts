@@ -87,8 +87,8 @@ export const getCourseStatus = (course: {
 }) => {
   if (course.takenDownAt) return "ARCHIVED";
   if (course.publishRequest?.status === "PENDING") return "PENDING";
-  if (course.publishRequest?.status === "REJECTED") return "REJECTED";
   if (course.publishedAt) return "PUBLISHED";
+  if (course.publishRequest?.status === "REJECTED") return "REJECTED";
   return "DRAFT";
 };
 

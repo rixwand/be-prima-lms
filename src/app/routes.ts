@@ -7,8 +7,9 @@ import courseSectionRoutes from "../modules/courseDomain/courseSection/courseSec
 import enrollmentRoutes from "../modules/courseDomain/enrollment/enrollment.routes";
 import learnRoutes from "../modules/courseDomain/learn/learn.routes";
 import lessonRoutes from "../modules/courseDomain/lesson/lesson.routes";
+import myInvoiceRoutes from "../modules/invoice/invoice.me.routes";
+import invoiceRoutes from "../modules/invoice/invoice.routes";
 import orderRoutes from "../modules/order/order.routes";
-import paymentRoutes from "../modules/payment/payment.routes";
 import userRoutes from "../modules/users/users.routes";
 
 const api = Router();
@@ -22,6 +23,7 @@ api.use("/me/enrollments", enrollmentRoutes);
 api.use("/me/learn/:courseSlug", learnRoutes);
 api.use("/courses/publish-requests", coursePublishRoutes);
 api.use("/course-categories", courseCategoryRoutes);
-api.use("/payment", paymentRoutes);
-api.use("/order", orderRoutes);
+api.use("/me/invoices", myInvoiceRoutes);
+api.use("/invoices", invoiceRoutes);
+api.use("/orders", orderRoutes);
 export default api;

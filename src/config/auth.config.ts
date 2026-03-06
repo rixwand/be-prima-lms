@@ -19,6 +19,8 @@ export const AUTH = Object.freeze({
   RESOURCES: {
     COURSE: "course",
     USER: "user",
+    INVOICE: "invoice",
+    ORDER: "order",
   },
 } as const);
 

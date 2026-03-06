@@ -23,7 +23,7 @@ lessonRoutes.post(
 
 lessonRoutes.get(
   "/:lessonId",
-  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireHierarcy("lesson"),
   lessonController.getContent,
 );

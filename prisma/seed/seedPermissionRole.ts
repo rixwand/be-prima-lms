@@ -17,8 +17,8 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
         where: { name },
         update: {},
         create: { name },
-      })
-    )
+      }),
+    ),
   );
 
   const roleMap = Object.fromEntries(roles.map(r => [r.name, r.id]));
@@ -33,6 +33,16 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
         resource: AUTH.RESOURCES.COURSE,
         scope: AUTH.SCOPES.OWN,
       },
+      {
+        action: AUTH.ACTIONS.VIEW,
+        resource: AUTH.RESOURCES.INVOICE,
+        scope: AUTH.SCOPES.OWN,
+      },
+      {
+        action: AUTH.ACTIONS.CREATE,
+        resource: AUTH.RESOURCES.ORDER,
+        scope: AUTH.SCOPES.OWN,
+      },
     ],
 
     [AUTH.ROLES.LECTURER]: [AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.DELETE].map(
@@ -40,7 +50,7 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
         action,
         resource: AUTH.RESOURCES.COURSE,
         scope: AUTH.SCOPES.OWN,
-      })
+      }),
     ),
     // course (global)
     [AUTH.ROLES.ADMIN]: [
@@ -53,6 +63,17 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
       {
         action: AUTH.ACTIONS.MANAGE,
         resource: AUTH.RESOURCES.USER,
+        scope: AUTH.SCOPES.GLOBAL,
+      },
+
+      {
+        action: AUTH.ACTIONS.VIEW,
+        resource: AUTH.RESOURCES.INVOICE,
+        scope: AUTH.SCOPES.GLOBAL,
+      },
+      {
+        action: AUTH.ACTIONS.VIEW,
+        resource: AUTH.RESOURCES.ORDER,
         scope: AUTH.SCOPES.GLOBAL,
       },
     ],
@@ -94,7 +115,7 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
     perms.map(p => ({
       roleId: roleMap[roleName]!,
       permissionId: permIdMap.get(`${p.action}:${p.resource}:${p.scope}`)!,
-    }))
+    })),
   );
 
   await prisma.rolePermission.createMany({

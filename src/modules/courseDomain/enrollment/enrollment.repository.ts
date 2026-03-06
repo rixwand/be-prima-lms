@@ -72,12 +72,12 @@ export default {
         MAX(ma.payload ->> 'coverImage') AS "coverImage",
         COUNT(lp.id)::int AS total,
         COUNT(CASE WHEN lp.status = 'COMPLETED' THEN 1 END)::int AS completed
-      FROM enrollment e
+      FROM enrollments e
       JOIN "courses" c
         ON c.id = e."courseId"
       LEFT JOIN "course_meta_approved" ma
         ON ma."courseId" = c.id
-      LEFT JOIN "LessonProgress" lp
+      LEFT JOIN "lesson_progress" lp
         ON lp."enrollmentId" = e.id
       WHERE
         e."userId" = ${userId}

@@ -156,6 +156,9 @@ export const courseSectionService = {
   }) {
     if (props.publishedAt) throw new ApiError(400, "Section already published");
     return withTransaction(async tx => {
+      const section = await courseSectionRepo.countLesson(props, tx);
+      if (!section || section._count.lessons == 0)
+        throw new ApiError(404, "Section must have at least 1 published lesson to publish section");
       const published = await courseSectionRepo.publish(props, tx);
       if (courseStatus == "PUBLISHED")
         await lessonProgressRepository.createPublishedSection({ courseId: props.courseId, sectionId: props.id }, tx);
