@@ -126,87 +126,93 @@ export const courseRepo = {
     discount?: OptionalizeUndefined<ICourseDiscountCreate>;
   }) {
     const { ownerId, slug, ...data } = optionalizeUndefined(course);
-    return prisma.$transaction(async tx => {
-      const course = await tx.course.create({
-        data: {
-          ownerId,
-          slug,
-          metaDraft: {
-            create: {
-              ...data,
-              draftTags: {
-                create: tags.map(tag => ({
-                  tag: {
-                    connectOrCreate: {
-                      where: { slug: slugify(tag) },
-                      create: { name: tag, slug: slugify(tag) },
-                    },
-                  },
-                })),
-              },
-              draftDiscounts: {
-                ...(discount
-                  ? {
-                      create: {
-                        ...discount,
-                        type: discount.type == "FIXED" ? "FIXED" : "PERCENTAGE",
+    return prisma.$transaction(
+      async tx => {
+        const course = await tx.course.create({
+          data: {
+            ownerId,
+            slug,
+            metaDraft: {
+              create: {
+                ...data,
+                draftTags: {
+                  create: tags.map(tag => ({
+                    tag: {
+                      connectOrCreate: {
+                        where: { slug: slugify(tag) },
+                        create: { name: tag, slug: slugify(tag) },
                       },
-                    }
-                  : {}),
-              },
-            },
-          },
-          ...(sections
-            ? {
-                sections: {
-                  create: sections.map(({ title, lessons }, i) => ({
-                    title: title,
-                    position: i + 1,
-                    lessons: {
-                      ...(lessons
-                        ? {
-                            create: lessons.map(({ durationSec, summary, contentJson, ...lesson }, li) => ({
-                              ...lesson,
-                              contentLive: comingSoonLesson,
-                              contentDraft: contentJson,
-                              slug: slugify(lesson.title),
-                              position: li + 1,
-                            })),
-                          }
-                        : {}),
                     },
                   })),
                 },
-              }
-            : {}),
-        },
-        select: { metaDraft: { select: { id: true } } },
-      });
-      await tx.courseDraftCategory.createMany({
-        data: ids.map(c_id => ({
-          categoryId: c_id,
-          draftId: course.metaDraft?.id!,
-          isPrimary: c_id == primaryId,
-        })),
-      });
-    });
+                draftDiscounts: {
+                  ...(discount
+                    ? {
+                        create: {
+                          ...discount,
+                          type: discount.type == "FIXED" ? "FIXED" : "PERCENTAGE",
+                        },
+                      }
+                    : {}),
+                },
+              },
+            },
+            ...(sections
+              ? {
+                  sections: {
+                    create: sections.map(({ title, lessons }, i) => ({
+                      title: title,
+                      position: i + 1,
+                      lessons: {
+                        ...(lessons
+                          ? {
+                              create: lessons.map(({ durationSec, summary, contentJson, ...lesson }, li) => ({
+                                ...lesson,
+                                contentLive: comingSoonLesson,
+                                contentDraft: contentJson,
+                                slug: slugify(lesson.title),
+                                position: li + 1,
+                              })),
+                            }
+                          : {}),
+                      },
+                    })),
+                  },
+                }
+              : {}),
+          },
+          select: { metaDraft: { select: { id: true } } },
+        });
+        await tx.courseDraftCategory.createMany({
+          data: ids.map(c_id => ({
+            categoryId: c_id,
+            draftId: course.metaDraft?.id!,
+            isPrimary: c_id == primaryId,
+          })),
+        });
+      },
+      { timeout: 30000 },
+    );
   },
 
   async updateDraftCategories(draftId: number, { ids, primaryId }: ICourseCategoriesCreateEntity) {
-    return prisma.$transaction(async tx => {
-      const { count: removed } = await tx.courseDraftCategory.deleteMany({
-        where: { draftId },
-      });
+    return prisma.$transaction(
+      async tx => {
+        const { count: removed } = await tx.courseDraftCategory.deleteMany({
+          where: { draftId },
+        });
 
-      const { count: created } = await tx.courseDraftCategory.createMany({
-        data: ids.map(id => ({
-          draftId,
-          categoryId: id,
-          isPrimary: id === primaryId,
-        })),
-      });
-      return { removed, created };
-    });
+        const { count: created } = await tx.courseDraftCategory.createMany({
+          data: ids.map(id => ({
+            draftId,
+            categoryId: id,
+            isPrimary: id === primaryId,
+          })),
+        });
+        return { removed, created };
+      },
+      { timeout: 30000 },
+    );
   },
 
   async listPublicTags({ search, limit, page }: IListPublicTagsParams) {

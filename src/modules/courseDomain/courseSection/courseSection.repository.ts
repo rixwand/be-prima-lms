@@ -102,9 +102,10 @@ export const courseSectionRepo = {
   async bulkApplyPositionsTwoPhase(courseId: number, items: SectionRow[]) {
     const VALUES = Prisma.join(items.map(it => Prisma.sql`(${it.id}, ${it.position})`));
 
-    await prisma.$transaction(async tx => {
-      // Phase 1: bump all current positions up beyond the max
-      await tx.$executeRaw`
+    await prisma.$transaction(
+      async tx => {
+        // Phase 1: bump all current positions up beyond the max
+        await tx.$executeRaw`
       UPDATE "course_sections"
       SET "position" = "position" + (
         SELECT MAX("position") + 1 FROM "course_sections" WHERE "courseId" = ${courseId}
@@ -112,14 +113,16 @@ export const courseSectionRepo = {
       WHERE "courseId" = ${courseId};
     `;
 
-      // Phase 2: apply the final mapping
-      await tx.$executeRaw`
+        // Phase 2: apply the final mapping
+        await tx.$executeRaw`
       UPDATE "course_sections" AS cs
       SET "position" = v."position"
       FROM (VALUES ${VALUES}) AS v("id", "position")
       WHERE cs."id" = v."id" AND cs."courseId" = ${courseId};
     `;
-    });
+      },
+      { timeout: 30000 },
+    );
   },
 
   async remove(ids: { id: number; courseId: number }) {

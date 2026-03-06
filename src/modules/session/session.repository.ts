@@ -10,23 +10,26 @@ export const sessionRepo = {
   },
 
   async rotate({ userId, oldJti, newJti, expiresAt }: IRSRotateEntity) {
-    return prisma.$transaction(async trx => {
-      await trx.refreshSession.create({
-        data: {
-          userId,
-          jti: newJti,
-          expiresAt,
-        },
-      });
+    return prisma.$transaction(
+      async trx => {
+        await trx.refreshSession.create({
+          data: {
+            userId,
+            jti: newJti,
+            expiresAt,
+          },
+        });
 
-      await trx.refreshSession.update({
-        where: { jti: oldJti },
-        data: {
-          revokedAt: new Date(),
-          replacedByJti: newJti,
-        },
-      });
-    });
+        await trx.refreshSession.update({
+          where: { jti: oldJti },
+          data: {
+            revokedAt: new Date(),
+            replacedByJti: newJti,
+          },
+        });
+      },
+      { timeout: 30000 },
+    );
   },
 
   async revokeByJti(jti: string) {
@@ -48,12 +51,15 @@ export const sessionRepo = {
   },
 
   async revokeMany(jtis: string[], revokedAt: Date) {
-    return prisma.$transaction(async trx => {
-      const { count } = await trx.refreshSession.updateMany({
-        where: { jti: { in: jtis } },
-        data: { revokedAt },
-      });
-      return count;
-    });
+    return prisma.$transaction(
+      async trx => {
+        const { count } = await trx.refreshSession.updateMany({
+          where: { jti: { in: jtis } },
+          data: { revokedAt },
+        });
+        return count;
+      },
+      { timeout: 30000 },
+    );
   },
 };

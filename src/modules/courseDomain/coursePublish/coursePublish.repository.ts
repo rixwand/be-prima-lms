@@ -42,16 +42,19 @@ const selectCoursePublishReturn = {
 
 export const coursePublishRepository = {
   async create(data: ICreateCoursePublishRequest, courseId: number) {
-    return prisma.$transaction(async tx => {
-      const newReq = await tx.coursePublishRequest.create({
-        data: {
-          type: "NEW",
-          course: { connect: { id: courseId } },
-          notes: data.notes || null,
-        },
-      });
-      return newReq;
-    });
+    return prisma.$transaction(
+      async tx => {
+        const newReq = await tx.coursePublishRequest.create({
+          data: {
+            type: "NEW",
+            course: { connect: { id: courseId } },
+            notes: data.notes || null,
+          },
+        });
+        return newReq;
+      },
+      { timeout: 30000 },
+    );
   },
 
   async findById(id: number, db: PrismaTx = prisma) {
@@ -119,31 +122,34 @@ export const coursePublishRepository = {
     courseId: number;
     data: IUpdateStatusCoursePublishRequest;
   }) {
-    return prisma.$transaction(async tx => {
-      const updated = await tx.coursePublishRequest.update({
-        where: { id },
-        data: optionalizeUndefined(data),
-      });
-      const course = await tx.course.update({
-        where: {
-          id: courseId,
-        },
-        data: {
-          ...(data.status == "APPROVED" && { publishedAt: new Date() }),
-        },
-        select: {
-          metaDraft: {
-            select: {
-              title: true,
+    return prisma.$transaction(
+      async tx => {
+        const updated = await tx.coursePublishRequest.update({
+          where: { id },
+          data: optionalizeUndefined(data),
+        });
+        const course = await tx.course.update({
+          where: {
+            id: courseId,
+          },
+          data: {
+            ...(data.status == "APPROVED" && { publishedAt: new Date() }),
+          },
+          select: {
+            metaDraft: {
+              select: {
+                title: true,
+              },
             },
           },
-        },
-      });
-      return {
-        ...updated,
-        courseTitle: course.metaDraft?.title!,
-      };
-    });
+        });
+        return {
+          ...updated,
+          courseTitle: course.metaDraft?.title!,
+        };
+      },
+      { timeout: 30000 },
+    );
   },
   async deleteRequest(courseId: number) {
     const { course } = await prisma.coursePublishRequest.delete({

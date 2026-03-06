@@ -7,7 +7,7 @@ const courseDraftRepo = {
     if (tx) {
       return updateMetaFn(course, id, tx);
     } else {
-      return prisma.$transaction(async tx => updateMetaFn(course, id, tx));
+      return prisma.$transaction(async tx => updateMetaFn(course, id, tx), { timeout: 30000 });
     }
   },
 

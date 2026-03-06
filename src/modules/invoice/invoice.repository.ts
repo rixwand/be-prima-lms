@@ -31,7 +31,7 @@ export default {
   async create(data: INV, tx?: Prisma.TransactionClient) {
     if (tx) return createInvoiceFn(tx, data);
     else {
-      return prisma.$transaction(async tx => createInvoiceFn(tx, data));
+      return prisma.$transaction(async tx => createInvoiceFn(tx, data), { timeout: 30000 });
     }
   },
 

@@ -37,52 +37,55 @@ export default {
   },
 
   async startCourse({ courseId, userId }: { courseId: number; userId: number }) {
-    return prisma.$transaction(async tx => {
-      // Get enrollment
-      const enrollment = await tx.enrollment.findUnique({
-        where: {
-          userId_courseId: {
-            userId,
-            courseId,
-          },
-        },
-        select: { id: true },
-      });
-
-      if (!enrollment) throw new Error("Not enrolled");
-
-      //  Find first NOT completed lesson
-      const nextLesson = await tx.lesson.findFirst({
-        where: {
-          section: { courseId },
-          lessonProgress: {
-            some: {
-              enrollmentId: enrollment.id,
-              status: { not: "COMPLETED" },
+    return prisma.$transaction(
+      async tx => {
+        // Get enrollment
+        const enrollment = await tx.enrollment.findUnique({
+          where: {
+            userId_courseId: {
+              userId,
+              courseId,
             },
           },
-        },
-        orderBy: [{ section: { position: "asc" } }, { position: "asc" }],
-        select: { slug: true },
-      });
+          select: { id: true },
+        });
 
-      // If everything completed → open last lesson
-      if (!nextLesson) {
-        return tx.lesson.findFirst({
+        if (!enrollment) throw new Error("Not enrolled");
+
+        //  Find first NOT completed lesson
+        const nextLesson = await tx.lesson.findFirst({
           where: {
             section: { courseId },
             lessonProgress: {
               some: {
                 enrollmentId: enrollment.id,
+                status: { not: "COMPLETED" },
               },
             },
           },
-          orderBy: [{ section: { position: "desc" } }, { position: "desc" }],
+          orderBy: [{ section: { position: "asc" } }, { position: "asc" }],
           select: { slug: true },
         });
-      }
 
-      return nextLesson;
-    });
+        // If everything completed → open last lesson
+        if (!nextLesson) {
+          return tx.lesson.findFirst({
+            where: {
+              section: { courseId },
+              lessonProgress: {
+                some: {
+                  enrollmentId: enrollment.id,
+                },
+              },
+            },
+            orderBy: [{ section: { position: "desc" } }, { position: "desc" }],
+            select: { slug: true },
+          });
+        }
+
+        return nextLesson;
+      },
+      { timeout: 30000 },
+    );
   },
 };

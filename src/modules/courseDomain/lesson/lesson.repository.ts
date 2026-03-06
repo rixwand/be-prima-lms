@@ -57,28 +57,31 @@ export const lessonRepo = {
   async removeMany({ ids, sectionId }: { ids: number[]; sectionId: number }) {
     const now = new Date();
 
-    return prisma.$transaction(async tx => {
-      const { count } = await tx.lesson.deleteMany({
-        where: {
-          id: { in: ids },
-          sectionId,
-          publishedAt: null,
-        },
-      });
+    return prisma.$transaction(
+      async tx => {
+        const { count } = await tx.lesson.deleteMany({
+          where: {
+            id: { in: ids },
+            sectionId,
+            publishedAt: null,
+          },
+        });
 
-      const { count: updateCount } = await tx.lesson.updateMany({
-        where: {
-          id: { in: ids },
-          sectionId,
-          publishedAt: { not: null },
-          removedAt: null,
-        },
-        data: {
-          removedAt: now,
-        },
-      });
-      return { count: count + updateCount };
-    });
+        const { count: updateCount } = await tx.lesson.updateMany({
+          where: {
+            id: { in: ids },
+            sectionId,
+            publishedAt: { not: null },
+            removedAt: null,
+          },
+          data: {
+            removedAt: now,
+          },
+        });
+        return { count: count + updateCount };
+      },
+      { timeout: 30000 },
+    );
   },
 
   async list(sectionId: number) {
@@ -128,17 +131,18 @@ export const lessonRepo = {
     // Build VALUES safely with Prisma SQL
     const VALUES = Prisma.join(items.map(it => Prisma.sql`(${it.id}, ${it.position})`));
 
-    await prisma.$transaction(async tx => {
-      // Lock rows for this section to prevent concurrent reorder from interfering.
-      // This SELECT ... FOR UPDATE will lock matching rows (Postgres).
-      await tx.$executeRaw`
+    await prisma.$transaction(
+      async tx => {
+        // Lock rows for this section to prevent concurrent reorder from interfering.
+        // This SELECT ... FOR UPDATE will lock matching rows (Postgres).
+        await tx.$executeRaw`
         SELECT "id" FROM "lessons"
         WHERE "sectionId" = ${sectionId}
         FOR UPDATE
       `;
 
-      // Phase 1: bump positions up beyond the max
-      await tx.$executeRaw`
+        // Phase 1: bump positions up beyond the max
+        await tx.$executeRaw`
         UPDATE "lessons"
         SET "position" = "position" + (
           SELECT COALESCE(MAX("position"), 0) + 1 FROM "lessons" WHERE "sectionId" = ${sectionId}
@@ -146,13 +150,15 @@ export const lessonRepo = {
         WHERE "sectionId" = ${sectionId};
       `;
 
-      // Phase 2: apply final positions
-      await tx.$executeRaw`
+        // Phase 2: apply final positions
+        await tx.$executeRaw`
         UPDATE "lessons" AS l
         SET "position" = v."position"
         FROM (VALUES ${VALUES}) AS v("id", "position")
         WHERE l."id" = v."id" AND l."sectionId" = ${sectionId};
       `;
-    });
+      },
+      { timeout: 30000 },
+    );
   },
 };
