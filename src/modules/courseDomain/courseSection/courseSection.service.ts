@@ -1,4 +1,5 @@
 import { withTransaction } from "../../../common/libs/prisma/transaction";
+import { comingSoonLesson, slugify } from "../../../common/utils/course";
 import { ApiError } from "../../../common/utils/http";
 import { CourseStatus } from "../course/course.types";
 import { lessonService } from "../lesson/lesson.service";
@@ -34,6 +35,71 @@ export const courseSectionService = {
       return row;
     });
     return courseSectionRepo.createMany(sections);
+  },
+
+  async appendSectionsWithLessons(
+    sections: Array<{
+      title: string;
+      isPublished?: boolean | undefined;
+      lessons?:
+        | Array<
+            ILessonPayload & {
+              isPublished?: boolean | undefined;
+            }
+          >
+        | undefined;
+    }>,
+    courseId: number,
+  ) {
+    return withTransaction(async tx => {
+      const { _max } = await tx.courseSection.aggregate({
+        where: { courseId },
+        _max: { position: true },
+      });
+      let sectionPosition = (_max.position ?? 0) + 1;
+      let lessonCount = 0;
+      const now = new Date();
+
+      for (const section of sections) {
+        const createdSection = await tx.courseSection.create({
+          data: {
+            title: section.title,
+            position: sectionPosition,
+            courseId,
+            ...(section.isPublished ? { publishedAt: now } : {}),
+          },
+        });
+        sectionPosition += 1;
+
+        if (!section.lessons?.length) continue;
+
+        const slugCounter = new Map<string, number>();
+        const lessonsPayload = section.lessons.map((lesson, index) => {
+          const baseSlug = slugify(lesson.title) || "lesson";
+          const nextIndex = (slugCounter.get(baseSlug) ?? 0) + 1;
+          slugCounter.set(baseSlug, nextIndex);
+          const slug = nextIndex === 1 ? baseSlug : `${baseSlug}-${nextIndex}`;
+
+          return {
+            sectionId: createdSection.id,
+            slug,
+            title: lesson.title,
+            summary: lesson.summary ?? null,
+            durationSec: lesson.durationSec ?? null,
+            isPreview: lesson.isPreview ?? false,
+            position: index + 1,
+            contentLive: lesson.isPublished ? lesson.contentJson : comingSoonLesson,
+            contentDraft: lesson.contentJson,
+            ...(lesson.isPublished ? { publishedAt: now } : {}),
+          };
+        });
+
+        await tx.lesson.createMany({ data: lessonsPayload });
+        lessonCount += lessonsPayload.length;
+      }
+
+      return { sectionCount: sections.length, lessonCount };
+    });
   },
 
   async update(props: { title: string; sectionId: number; courseId: number }) {

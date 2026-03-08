@@ -3,6 +3,7 @@ import { validate } from "../../../common/utils/validation";
 import { courseSectionService } from "./courseSection.service";
 import {
   createSectionSchema,
+  createSectionsWithLessonsSchema,
   deleteManyCourseSectionsSchema,
   reorderCourseSectionsSchema,
   updateSectionSchema,
@@ -16,6 +17,15 @@ const create: AsyncRequestHandler = async (req, res) => {
   const { arrayTitle } = await validate(createSectionSchema, req.body);
   const { count } = await courseSectionService.appendSection(arrayTitle, courseId);
   res.status(200).json({ data: { message: `success add ${count} course sections` } });
+};
+
+const createWithLessons: AsyncRequestHandler = async (req, res) => {
+  const courseId = req.course?.id!;
+  const { sections } = await validate(createSectionsWithLessonsSchema, req.body);
+  const { sectionCount, lessonCount } = await courseSectionService.appendSectionsWithLessons(sections, courseId);
+  res.status(200).json({
+    data: { message: `success add ${sectionCount} course sections and ${lessonCount} lessons` },
+  });
 };
 
 const update: AsyncRequestHandler = async (req, res) => {
@@ -53,6 +63,7 @@ const removeMany: AsyncRequestHandler = async (req, res) => {
 export const courseSectionController = {
   list: asyncHandler(list),
   create: asyncHandler(create),
+  createWithLessons: asyncHandler(createWithLessons),
   update: asyncHandler(update),
   reorder: asyncHandler(reorder),
   remove: asyncHandler(remove),

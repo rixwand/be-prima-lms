@@ -18,6 +18,12 @@ courseSectionRoutes.post(
   requireCourseOwnership,
   courseSectionController.create,
 );
+courseSectionRoutes.post(
+  "/with-lessons",
+  requirePermission(AUTH.ACTIONS.CREATE, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),
+  requireCourseOwnership,
+  courseSectionController.createWithLessons,
+);
 courseSectionRoutes.patch(
   "/reorder",
   requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: AUTH.SCOPES.OWN }),

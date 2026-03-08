@@ -7,6 +7,41 @@ export const createSectionSchema = yup
   .noUnknown()
   .required();
 
+export const createSectionsWithLessonsSchema = yup
+  .object({
+    sections: yup
+      .array()
+      .of(
+        yup
+          .object({
+            title: yup.string().required(),
+            isPublished: yup.boolean().optional().default(false),
+            lessons: yup
+              .array()
+              .of(
+                lessonSchema
+                  .concat(
+                    yup
+                      .object({
+                        isPublished: yup.boolean().optional().default(false),
+                      })
+                      .required()
+                      .noUnknown(),
+                  )
+                  .required(),
+              )
+              .min(1)
+              .optional(),
+          })
+          .required()
+          .noUnknown(),
+      )
+      .min(1)
+      .required(),
+  })
+  .noUnknown()
+  .required();
+
 export const updateSectionSchema = yup
   .object({
     title: yup.string().required(),
