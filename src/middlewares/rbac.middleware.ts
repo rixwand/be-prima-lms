@@ -5,7 +5,7 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
   const allowedScopes = opts?.scope == null ? undefined : Array.isArray(opts.scope) ? opts.scope : [opts.scope];
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      if (!req.user) return res.status(401).json({ error: "Unauthorized" });
       const user = await userRepo.findById(req.user.id, {
         select: {
           role: {
@@ -21,7 +21,7 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
           },
         },
       });
-      if (!user?.role) return res.status(401).json({ message: "Unauthorized" });
+      if (!user?.role) return res.status(401).json({ error: "Unauthorized" });
       const permissions = user.role.perms.map(rp => rp.permission);
 
       const allowed = permissions.some(p => {
@@ -37,7 +37,7 @@ const requirePermission = (action: string, resource: string, opts?: { scope?: st
       });
 
       if (!allowed) {
-        return res.status(403).json({ message: "Forbidden" });
+        return res.status(403).json({ error: "Forbidden" });
       }
 
       // expose matched scopes if needed downstream

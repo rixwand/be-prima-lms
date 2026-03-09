@@ -14,9 +14,9 @@ export const requireCourseEnrollment = async (req: Request, res: Response, next:
     console.log("slug: ", slug);
     const user = req.user;
     const course = await courseRepo.findEnrollmentBySlug(slug);
-    if (!course) return res.status(404).json({ message: "Course not found" });
+    if (!course) return res.status(404).json({ error: "Course not found" });
     if (!course.enrollments.some(e => e.userId == user?.id!))
-      return res.status(404).json({ message: "Enrollment not found" });
+      return res.status(404).json({ error: "Enrollment not found" });
     req.course = { id: course.id };
     next();
   } catch (error) {
@@ -30,7 +30,7 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
     const courseId = (await validateIdParams(req.params.courseId)).id;
 
     if (!Number.isFinite(courseId)) {
-      return res.status(400).json({ message: "Invalid courseId" });
+      return res.status(400).json({ error: "Invalid courseId" });
     }
 
     // TODO: if user role is member fetch into enrollment instead
@@ -49,7 +49,7 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
     // TODO: if course.takenDownAt then block user enrollment
 
     if (!course) {
-      return res.status(404).json({ message: "Course not found" });
+      return res.status(404).json({ error: "Course not found" });
     }
 
     if (req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) && course.publishRequest) {
@@ -63,7 +63,7 @@ export const requireCourseOwnership = async (req: Request, res: Response, next: 
     }
 
     if (course.ownerId !== user?.id) {
-      return res.status(403).json({ message: "Forbidden" });
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     console.log("course in middlware: ", course);
@@ -200,4 +200,4 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
   }
 };
 
-const notFound = (res: any, msg: string) => res.status(404).json({ message: msg });
+const notFound = (res: any, msg: string) => res.status(404).json({ error: msg });
