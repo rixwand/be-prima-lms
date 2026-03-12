@@ -1,5 +1,6 @@
 import { ApiError, AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
 import { validate, validateIdParams, validateSlugParams } from "../../../common/utils/validation";
+import { AUTH } from "../../../config";
 import courseDraftService from "../courseDraft/courseDraft.service";
 import { courseService } from "./course.service";
 import {
@@ -81,7 +82,13 @@ const preview: AsyncRequestHandler = async (req, res) => {
 };
 
 const get: AsyncRequestHandler = async (req, res) => {
-  const course = await courseService.get(req.course?.id!);
+  const course = await courseService.get(
+    req.course?.id!,
+    !(
+      req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL) &&
+      (req.course?.status == "PUBLISHED" || req.course?.status == "REJECTED")
+    ),
+  );
   res.status(200).json({ data: course });
 };
 

@@ -19,7 +19,12 @@ export const courseService = {
   async listPublicCourses(params: IListPublicCourseParams) {
     const [courses, total] = await courseRepo.listPublicCourses(params);
     return {
-      courses: courses.map(c => ({ ...c, metaApproved: c.metaApproved?.payload })),
+      courses: courses.map(c => ({
+        ...c,
+        metaApproved: c.metaApproved?.payload,
+        tags: c.tags.map(t => t.tag),
+        categories: c.categories.map(c => c.category),
+      })),
       meta: {
         total,
         page: params.page,
@@ -84,19 +89,21 @@ export const courseService = {
     };
   },
 
-  async get(id: number) {
+  async get(id: number, includeDraft: boolean = true) {
     const course = await courseRepo.findById(id, {
       include: {
-        metaDraft: {
-          include: {
-            draftCategories: { omit: { draftId: true }, include: { category: { select: { name: true } } } },
-            draftTags: { select: { tag: true } },
-            draftDiscounts: true,
-          },
-        },
+        metaDraft: includeDraft
+          ? {
+              include: {
+                draftCategories: { omit: { draftId: true }, include: { category: { select: { name: true } } } },
+                draftTags: { select: { tag: true } },
+                draftDiscounts: true,
+              },
+            }
+          : false,
         metaApproved: { select: { payload: true } },
         publishRequest: {
-          select: { notes: true, id: true, status: true },
+          select: { notes: true, id: true, status: true, type: true },
         },
         categories: { omit: { courseId: true }, include: { category: { select: { name: true } } } },
         tags: { select: { tag: true } },
@@ -114,7 +121,34 @@ export const courseService = {
     });
     if (!course) throw new ApiError(404, "Course not found");
     const { metaApproved, metaDraft, tags, categories, ...data } = course;
-    const { draftCategories, draftDiscounts, draftTags, ...draft } = metaDraft!;
+    const draftWithRelations = metaDraft as
+      | (CourseMetaDraft & {
+          draftCategories: { categoryId: number; isPrimary: boolean; category: { name: string } }[];
+          draftTags: { tag: { name: string; slug: string } }[];
+          draftDiscounts: unknown[];
+        })
+      | null;
+    const approvedMeta = metaApproved?.payload as MetaApprovedPayload | undefined;
+    const transformedDraft = draftWithRelations
+      ? {
+          ...draftWithRelations,
+          draftCategories: draftWithRelations.draftCategories.map(c => ({
+            id: c.categoryId,
+            name: c.category.name,
+            isPrimary: c.isPrimary,
+          })),
+          draftTags: draftWithRelations.draftTags.map(c => c.tag),
+        }
+      : null;
+
+    const canApplyTierB =
+      draftWithRelations && approvedMeta
+        ? computeRequiresApplyMeta({
+            draft: draftWithRelations,
+            approved: approvedMeta,
+          })
+        : false;
+
     return {
       ...data,
       tags: tags.map(t => t.tag),
@@ -123,17 +157,9 @@ export const courseService = {
         name: c.category.name,
         isPrimary: c.isPrimary,
       })),
-      metaApproved: metaApproved?.payload,
-      metaDraft: {
-        ...metaDraft,
-        draftCategories: draftCategories.map(c => ({
-          id: c.categoryId,
-          name: c.category.name,
-          isPrimary: c.isPrimary,
-        })),
-        draftTags: draftTags.map(c => c.tag),
-      },
-      canApplyTierB: computeRequiresApplyMeta({ draft, approved: metaApproved?.payload as MetaApprovedPayload }),
+      metaApproved: approvedMeta,
+      metaDraft: transformedDraft,
+      canApplyTierB,
     };
   },
 };

@@ -27,7 +27,6 @@ export const coursePublishService = {
         data: {
           notes: data.notes,
           status: "PENDING",
-          type: "NEW",
         },
       });
     }
@@ -48,7 +47,7 @@ export const coursePublishService = {
       return coursePublishRepository.create(
         {
           notes: `[instructor]: ${data.notes}`,
-          type: "UPDATE",
+          type: "NEW",
         },
         courseId,
       );
@@ -133,7 +132,7 @@ export const coursePublishService = {
     if (!existingRequest || existingRequest.status !== "PENDING")
       throw new ApiError(404, "A pending publish request for this course is not found.");
     if (existingRequest.reviewedById) {
-      return coursePublishRepository.cancelResubmittedRequest(courseId);
+      return coursePublishRepository.cancelResubmittedRequest(courseId, existingRequest);
     } else return coursePublishRepository.deleteRequest(courseId);
   },
 

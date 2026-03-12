@@ -322,6 +322,8 @@ export const courseRepo = {
             },
           },
           discounts: true,
+          categories: { select: { category: { select: { name: true, slug: true } } } },
+          tags: { select: { tag: { select: { name: true, slug: true } } } },
         },
         take: limit,
         skip: (page - 1) * limit,

@@ -1,5 +1,5 @@
-import { Prisma } from "@prisma/client";
-import { prisma, PrismaTx } from "../../../common/libs/prisma";
+import { CoursePublishRequest, Prisma } from "@prisma/client";
+import { PrismaTx, prisma } from "../../../common/libs/prisma";
 import { optionalizeUndefined } from "../../../common/utils/function";
 import {
   GetCoursePublishRequestQueries,
@@ -19,6 +19,7 @@ const selectCoursePublishReturn = {
     select: {
       slug: true,
       publishedAt: true,
+      metaApproved: { select: { payload: true } },
       metaDraft: {
         select: {
           title: true,
@@ -46,7 +47,7 @@ export const coursePublishRepository = {
       async tx => {
         const newReq = await tx.coursePublishRequest.create({
           data: {
-            type: "NEW",
+            type: data.type,
             course: { connect: { id: courseId } },
             notes: data.notes || null,
           },
@@ -158,12 +159,12 @@ export const coursePublishRepository = {
     });
     return { title: course.metaDraft?.title! };
   },
-  async cancelResubmittedRequest(courseId: number) {
+  async cancelResubmittedRequest(courseId: number, cuurentReq: CoursePublishRequest) {
     const recent = await prisma.coursePublishRequest.findUnique({ where: { courseId }, select: { notes: true } });
     const { course } = await prisma.coursePublishRequest.update({
       where: { courseId },
       data: {
-        status: "REJECTED",
+        status: cuurentReq.type == "UPDATE" ? "APPROVED" : "REJECTED",
         notes: `${recent?.notes}\n\n[instructor]:/CANCELED/`,
       },
       select: {
