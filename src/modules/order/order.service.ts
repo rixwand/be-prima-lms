@@ -46,8 +46,12 @@ export default {
     const enrollmentExist = await enrollmentRepository.get({ courseId, userId });
     if (enrollmentExist) throw new ApiError(409, "Course has been purchased");
 
-    const { priceAmount } = course.metaApproved?.payload as MetaApprovedPayload;
+    const approvedMeta = course.metaApproved?.payload as unknown as MetaApprovedPayload | undefined;
+    if (!approvedMeta) throw new ApiError(500, "Approved metadata not found");
+
+    const { priceAmount } = approvedMeta;
     const finalPrice = calculateFinalPrice({ basePrice: priceAmount, discounts: course.discounts });
+    const finalPriceForGateway = finalPrice.toNumber();
 
     const user = await userRepo.findById(userId, { select: { fullName: true, email: true } });
 
@@ -64,7 +68,7 @@ export default {
       const xenditInvoice = await Invoice.createInvoice({
         data: {
           externalId: invoice.invoiceNumber,
-          amount: finalPrice,
+          amount: finalPriceForGateway,
           description: "Test Xendit invoice",
           customer: {
             givenNames: user?.fullName!,

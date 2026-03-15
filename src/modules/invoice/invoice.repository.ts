@@ -1,14 +1,8 @@
 import { $Enums, Prisma } from "@prisma/client";
 import { PrismaTx, prisma } from "../../common/libs/prisma";
 import { ListInvoiceRepositoryParams } from "./invoice.types";
-type INV = {
-  amount: number;
-  status: $Enums.InvoiceStatus;
-  orderId: string;
-  expiresAt?: Date;
-  paidAt?: string;
-  xenditId?: string;
-};
+
+type INV = Omit<Prisma.InvoiceUncheckedCreateInput, "invoiceNumber">;
 
 const listInvoiceSelect = {
   id: true,

@@ -74,7 +74,7 @@ async function applyMetaDraft({ courseId, data, tier, db = prisma }: ApplyMetaDr
   if (!approved.payload || typeof approved.payload !== "object" || Array.isArray(approved.payload)) {
     throw new ApiError(400, "Invalid approved meta payload");
   }
-  const approvedPayload = approved.payload as MetaApprovedPayload;
+  const approvedPayload = approved.payload as unknown as MetaApprovedPayload;
   if (tier == "B") {
     return db.courseMetaApproved.update({
       where: { courseId },

@@ -1,21 +1,21 @@
 import { CourseDiscount, Prisma } from "@prisma/client";
 
+type DecimalInput = Prisma.Decimal | number | string;
+
 export const calculateFinalPrice = ({
   basePrice,
   discounts,
   codeDiscount,
 }: {
-  basePrice: number;
+  basePrice: DecimalInput;
   discounts?: CourseDiscount[];
   codeDiscount?: CourseDiscount;
 }) => {
   const activeDiscounts = discounts?.filter(d => d.isActive);
-  if (!activeDiscounts?.length) return basePrice;
-
   const zero = new Prisma.Decimal(0);
   let current = new Prisma.Decimal(basePrice);
 
-  for (const d of activeDiscounts) {
+  for (const d of activeDiscounts || []) {
     const amount = d.type === "FIXED" ? d.value : current.mul(d.value).div(100);
     current = Prisma.Decimal.max(zero, current.minus(amount));
   }
@@ -23,5 +23,5 @@ export const calculateFinalPrice = ({
     const amount = codeDiscount.type === "FIXED" ? codeDiscount.value : current.mul(codeDiscount.value).div(100);
     current = Prisma.Decimal.max(zero, current.minus(amount));
   }
-  return current.toNumber();
+  return current;
 };

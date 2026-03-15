@@ -1,4 +1,4 @@
-import { CourseMetaDraft } from "@prisma/client";
+import { CourseMetaDraft, Prisma } from "@prisma/client";
 import { InferType } from "yup";
 import {
   createCourseSchema,
@@ -37,7 +37,8 @@ export interface IListPublicCourseParams extends InferType<typeof listPublicCour
 
 export interface IListPublicTagsParams extends InferType<typeof listPublicTagsParamsSchema> {}
 
-export interface MetaApprovedPayload extends Omit<
-  CourseMetaDraft,
-  "id" | "requiresApproval" | "createdAt" | "updatedAt" | "courseId"
-> {}
+type CourseMetaPayloadBase = Omit<CourseMetaDraft, "id" | "requiresApproval" | "createdAt" | "updatedAt" | "courseId">;
+
+export interface MetaApprovedPayload extends Omit<CourseMetaPayloadBase, "priceAmount"> {
+  priceAmount: Prisma.Decimal | number | string;
+}

@@ -3,7 +3,7 @@ import { PrismaTx, prisma } from "../../common/libs/prisma";
 import { ListOrderRepositoryParams } from "./order.types";
 
 export default {
-  async create(data: { userId: number; courseId: number; amount: number }, db: PrismaTx = prisma) {
+  async create(data: Prisma.OrderUncheckedCreateInput, db: PrismaTx = prisma) {
     return db.order.create({
       data,
     });

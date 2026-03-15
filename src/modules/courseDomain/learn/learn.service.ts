@@ -12,7 +12,7 @@ export default {
     const course = await learnRepository.getCurriculum(courseId);
     if (!course) throw new ApiError(404, "Course Not Found");
     const { metaApproved, sections } = course;
-    return { title: (metaApproved?.payload as MetaApprovedPayload).title, sections };
+    return { title: (metaApproved?.payload as unknown as MetaApprovedPayload).title, sections };
   },
   async getLessonContent(props: Ids) {
     const lesson = await learnRepository.getLessonContent(props);

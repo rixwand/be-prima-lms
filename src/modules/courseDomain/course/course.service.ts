@@ -62,7 +62,7 @@ export const courseService = {
         ...c,
         canApplyTierB: computeRequiresApplyMeta({
           draft: c.metaDraft!,
-          approved: c.metaApproved?.payload as MetaApprovedPayload,
+          approved: c.metaApproved?.payload as unknown as MetaApprovedPayload,
         }),
       };
     });
@@ -128,7 +128,7 @@ export const courseService = {
           draftDiscounts: unknown[];
         })
       | null;
-    const approvedMeta = metaApproved?.payload as MetaApprovedPayload | undefined;
+    const approvedMeta = metaApproved?.payload as unknown as MetaApprovedPayload | undefined;
     const transformedDraft = draftWithRelations
       ? {
           ...draftWithRelations,

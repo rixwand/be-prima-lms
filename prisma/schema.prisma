@@ -193,7 +193,7 @@ model CourseMetaDraft {
   descriptionJson  Json?
   coverImage       String
   previewVideo     String?
-  priceAmount      Int
+  priceAmount      Decimal
   isFree           Boolean
   requiresApproval ApprovalTarget[] @default([])
 
@@ -429,7 +429,7 @@ model Order {
   id        String   @id @default(uuid())
   userId    Int
   courseId  Int
-  amount    Int
+  amount    Decimal
   status    OrderStatus @default(PENDING)
   createdAt DateTime @default(now())
   invoice   Invoice[]
@@ -487,7 +487,7 @@ model Invoice {
   invoiceNumber String   @unique
   xenditId      String?
   orderId       String
-  amount        Int
+  amount        Decimal
   status        InvoiceStatus
   expiresAt     DateTime?
   paidAt        DateTime?

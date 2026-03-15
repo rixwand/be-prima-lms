@@ -1,4 +1,4 @@
-import { Decimal } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
 import { withTransaction } from "../../../common/libs/prisma/transaction";
 import { slugify } from "../../../common/utils/course";
 import { definedKeys, optionalizeUndefined } from "../../../common/utils/function";
@@ -35,7 +35,7 @@ export default {
 
   async updateDraft({ course, draftId, courseId }: { course: ICourseUpdate; draftId: number; courseId: number }) {
     const { discounts, ...courseData } = course;
-    const metaApproved = (await courseRepo.getApprovedMeta(courseId)) as MetaApprovedPayload;
+    const metaApproved = (await courseRepo.getApprovedMeta(courseId)) as unknown as MetaApprovedPayload | undefined;
     const approvedDiscounts = await courseRepo.getApprovedDiscount(courseId);
     let requiresApproval = computeRequiresAppropalMeta({ input: courseData, metaApproved });
     const data = optionalizeUndefined(courseData);
@@ -127,7 +127,7 @@ const computeRequiresAppropalMeta = ({
   input,
   metaApproved,
 }: {
-  metaApproved?: MetaApprovedPayload;
+  metaApproved: MetaApprovedPayload | undefined;
   input: Omit<ICourseUpdate, "discounts">;
 }) => {
   if (!metaApproved) return false;
@@ -135,12 +135,20 @@ const computeRequiresAppropalMeta = ({
 
   return definedKeys(input)
     .filter(k => TIER_C_KEYS.includes(k))
-    .some(k => input[k] !== metaApproved[k]);
+    .some(k => {
+      if (k === "priceAmount") {
+        if (input.priceAmount == null || metaApproved.priceAmount == null) {
+          return input.priceAmount !== metaApproved.priceAmount;
+        }
+        return !new Prisma.Decimal(input.priceAmount).equals(new Prisma.Decimal(metaApproved.priceAmount));
+      }
+      return input[k] !== metaApproved[k];
+    });
 };
 
 type DiscountComparable = {
   type: string;
-  value: Decimal;
+  value: Prisma.Decimal;
   startAt?: Date | null;
   endAt?: Date | null;
   label?: string | null;
