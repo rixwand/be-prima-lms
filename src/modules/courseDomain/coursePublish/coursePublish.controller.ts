@@ -1,5 +1,7 @@
+import { getSocket } from "../../../app/socket";
 import { AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
 import { validate, validateIdParams } from "../../../common/utils/validation";
+import { AUTH } from "../../../config";
 import { coursePublishService } from "./coursePublish.service";
 import {
   createCoursePublishRequestSchema,
@@ -9,7 +11,9 @@ import {
 
 const createRequest: AsyncRequestHandler = async (req, res) => {
   const { notes } = await validate(createCoursePublishRequestSchema, req.body);
+  const socket = getSocket();
   const data = await coursePublishService.createRequest({ notes }, req.course?.id!);
+  socket.to(`role:${AUTH.ROLES.ADMIN}`).emit("new_notifications", "New Course Publish Request");
   res.status(201).json({ data });
 };
 

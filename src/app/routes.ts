@@ -9,6 +9,7 @@ import learnRoutes from "../modules/courseDomain/learn/learn.routes";
 import lessonRoutes from "../modules/courseDomain/lesson/lesson.routes";
 import myInvoiceRoutes from "../modules/invoice/invoice.me.routes";
 import invoiceRoutes from "../modules/invoice/invoice.routes";
+import notificationRoutes from "../modules/notification/notification.routes";
 import orderRoutes from "../modules/order/order.routes";
 import userRoutes from "../modules/users/users.routes";
 
@@ -24,6 +25,7 @@ api.use("/me/learn/:courseSlug", learnRoutes);
 api.use("/courses/publish-requests", coursePublishRoutes);
 api.use("/course-categories", courseCategoryRoutes);
 api.use("/me/invoices", myInvoiceRoutes);
+api.use("/me/notifications", notificationRoutes);
 api.use("/invoices", invoiceRoutes);
 api.use("/orders", orderRoutes);
 export default api;

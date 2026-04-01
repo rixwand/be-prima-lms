@@ -1,7 +1,10 @@
-import web from "./app/web";
+import server from "./app/server";
+import { initSocket } from "./app/socket";
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
-web.listen(PORT, () => {
+initSocket(server);
+
+server.listen(PORT, () => {
   console.log(`App listening at ${PORT}`);
 });

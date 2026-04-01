@@ -77,6 +77,7 @@ model User {
   @@map("users")
   activationTokens ActivationToken[]
   refreshSessions RefreshSession[]
+  notifications Notifications[]
 }
 
 model Role {
@@ -509,4 +510,20 @@ enum InvoiceStatus {
 model InvoiceCounter {
   year Int @id
   seq  Int @default(0)
+}
+
+model Notifications {
+  id      Int @id @default(autoincrement())
+  userId  Int
+  User    User   @relation(fields: [userId], references: [id])
+  type    String
+  title   String
+  message String
+  isRead  Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  entityId  String?
+  entityType String?
+  metadata Json?
+  @@map("notifications")
 }

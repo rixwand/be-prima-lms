@@ -1,6 +1,6 @@
 import { CourseStatus } from "../modules/courseDomain/course/course.types";
 
-export type RequestUser = { id: number; role_id: number };
+export type RequestUser = { id: number; role_id: number; role: string };
 declare global {
   namespace Express {
     interface Request {
