@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "../../common/libs/prisma";
+import { PrismaTx, prisma } from "../../common/libs/prisma";
 import { ApiError } from "../../common/utils/http";
+import { AuthRole } from "../../config";
 import { IUserCreateEntity, IUserUpdate } from "./user.types";
 
 type IncludeArg<I extends Prisma.UserInclude> = { include: I; select?: never };
@@ -10,12 +11,12 @@ async function findById(id: number): Promise<Prisma.UserGetPayload<{}> | null>;
 
 async function findById<I extends Prisma.UserInclude>(
   id: number,
-  opts: IncludeArg<I>
+  opts: IncludeArg<I>,
 ): Promise<Prisma.UserGetPayload<{ include: I }> | null>;
 
 async function findById<S extends Prisma.UserSelect>(
   id: number,
-  opts: SelectArg<S>
+  opts: SelectArg<S>,
 ): Promise<Prisma.UserGetPayload<{ select: S }> | null>;
 
 // Implementation (note the union type matches the overload shapes)
@@ -72,7 +73,7 @@ export const userRepo = {
   async updateById<S extends Prisma.UserSelect>(
     id: number,
     data: IUserUpdate,
-    select: S
+    select: S,
   ): Promise<Prisma.UserGetPayload<{ select: S }>> {
     return prisma.user.update({
       where: { id },
@@ -82,6 +83,12 @@ export const userRepo = {
       },
       select,
     });
+  },
+
+  findByRole: async (role: AuthRole, db: PrismaTx = prisma) => {
+    const roleData = await db.role.findUnique({ where: { name: role } });
+    if (!roleData) throw new Error("Role name not found");
+    return db.user.findMany({ where: { roleId: roleData.id }, select: { id: true } });
   },
 
   async updatePassword(id: number, passwordHash: string) {

@@ -52,6 +52,12 @@ enum MediaStatus {
   BLOCKED
 }
 
+enum SectionItemType {
+  LESSON
+  QUIZ
+  FORUM
+}
+
 /* =========================
    USER & AUTH
 ========================= */
@@ -348,20 +354,31 @@ model CourseSection {
   removedAt   DateTime?   
 
   course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  lessons  Lesson[]
+  sectionItem SectionItem[]
 
   @@unique([courseId, position])
   @@map("course_sections")
 }
 
+model SectionItem {
+  id          Int @id @default(autoincrement())
+  sectionId   Int
+  type        SectionItemType
+  position    Int
+
+  lessonId    Int? @unique
+  quizId      Int?
+  forumId     Int?
+
+  section     CourseSection @relation(fields: [sectionId], references: [id])
+  lesson      Lesson? @relation(fields: [lessonId], references: [id])
+}
 
 model Lesson {
   id          Int @id @default(autoincrement())
-  sectionId   Int
   slug        String
   title       String
   summary     String?
-  position    Int
   durationSec Int?
   isPreview   Boolean @default(false)
 
@@ -375,11 +392,9 @@ model Lesson {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  section     CourseSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   lessonProgress LessonProgress[]
+  sectionItem   SectionItem?
 
-  @@unique([sectionId, position])
-  @@unique([sectionId, slug])
   @@map("lessons")
 }
 

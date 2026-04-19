@@ -7,6 +7,6 @@ export async function withTransaction<T>(fn: TransactionFn<T>): Promise<T> {
     async tx => {
       return fn(tx);
     },
-    { timeout: 10000 },
+    { timeout: 30000 },
   );
 }

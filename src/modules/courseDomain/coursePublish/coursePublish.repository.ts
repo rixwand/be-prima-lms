@@ -1,5 +1,6 @@
 import { CoursePublishRequest, Prisma } from "@prisma/client";
 import { PrismaTx, prisma } from "../../../common/libs/prisma";
+import { withTransaction } from "../../../common/libs/prisma/transaction";
 import { optionalizeUndefined } from "../../../common/utils/function";
 import {
   GetCoursePublishRequestQueries,
@@ -42,31 +43,32 @@ const selectCoursePublishReturn = {
 } satisfies Prisma.CoursePublishRequestFindManyArgs["select"];
 
 export const coursePublishRepository = {
-  async create(data: ICreateCoursePublishRequest, courseId: number) {
-    return prisma.$transaction(
-      async tx => {
-        const newReq = await tx.coursePublishRequest.create({
-          data: {
-            type: data.type,
-            course: { connect: { id: courseId } },
-            notes: data.notes || null,
-          },
-        });
-        return newReq;
-      },
-      { timeout: 30000 },
-    );
+  async create(data: ICreateCoursePublishRequest, courseId: number, tx?: PrismaTx) {
+    const fn = async (tx: PrismaTx) => {
+      const newReq = await tx.coursePublishRequest.create({
+        data: {
+          type: data.type,
+          course: { connect: { id: courseId } },
+          notes: data.notes || null,
+        },
+        include: { course: { select: { metaDraft: { select: { title: true } } } } },
+      });
+      return newReq;
+    };
+    return tx ? fn(tx) : withTransaction(async tx => fn(tx));
   },
 
   async findById(id: number, db: PrismaTx = prisma) {
     return db.coursePublishRequest.findUnique({
       where: { id },
+      include: { course: { select: { ownerId: true } } },
     });
   },
 
   async findByCourseId(courseId: number) {
     return prisma.coursePublishRequest.findUnique({
       where: { courseId },
+      include: { course: { select: { metaDraft: { select: { title: true } } } } },
     });
   },
 
@@ -114,64 +116,70 @@ export const coursePublishRepository = {
     ]);
   },
 
-  async updateStatus({
-    courseId,
-    data,
-    id,
-  }: {
-    id: number;
-    courseId: number;
-    data: IUpdateStatusCoursePublishRequest;
-  }) {
-    return prisma.$transaction(
-      async tx => {
-        const updated = await tx.coursePublishRequest.update({
-          where: { id },
-          data: optionalizeUndefined(data),
-        });
-        const course = await tx.course.update({
-          where: {
-            id: courseId,
-          },
-          data: {
-            ...(data.status == "APPROVED" && { publishedAt: new Date() }),
-          },
-          select: {
-            metaDraft: {
-              select: {
-                title: true,
-              },
+  async updateStatus(
+    {
+      courseId,
+      data,
+      id,
+    }: {
+      id: number;
+      courseId: number;
+      data: IUpdateStatusCoursePublishRequest;
+    },
+    tx?: PrismaTx,
+  ) {
+    const fn = async (tx: PrismaTx) => {
+      const updated = await tx.coursePublishRequest.update({
+        where: { id },
+        data: optionalizeUndefined(data),
+      });
+      const course = await tx.course.update({
+        where: {
+          id: courseId,
+        },
+        data: {
+          ...(data.status == "APPROVED" && { publishedAt: new Date() }),
+        },
+        select: {
+          metaDraft: {
+            select: {
+              title: true,
             },
           },
-        });
-        return {
-          ...updated,
-          courseTitle: course.metaDraft?.title!,
-        };
-      },
-      { timeout: 30000 },
-    );
+          ownerId: true,
+        },
+      });
+      return {
+        ...updated,
+        courseTitle: course.metaDraft?.title!,
+        ownerId: course.ownerId,
+      };
+    };
+    return tx ? fn(tx) : withTransaction(async tx => fn(tx));
   },
-  async deleteRequest(courseId: number) {
-    const { course } = await prisma.coursePublishRequest.delete({
+  async deleteRequest(courseId: number, db: PrismaTx = prisma) {
+    const { course } = await db.coursePublishRequest.delete({
       where: { courseId },
       select: { course: { select: { metaDraft: { select: { title: true } } } } },
     });
     return { title: course.metaDraft?.title! };
   },
-  async cancelResubmittedRequest(courseId: number, cuurentReq: CoursePublishRequest) {
-    const recent = await prisma.coursePublishRequest.findUnique({ where: { courseId }, select: { notes: true } });
-    const { course } = await prisma.coursePublishRequest.update({
-      where: { courseId },
-      data: {
-        status: cuurentReq.type == "UPDATE" ? "APPROVED" : "REJECTED",
-        notes: `${recent?.notes}\n\n[instructor]:/CANCELED/`,
-      },
-      select: {
-        course: { select: { metaDraft: { select: { title: true } } } },
-      },
-    });
-    return { title: course.metaDraft?.title! };
+  async cancelResubmittedRequest(courseId: number, cuurentReq: CoursePublishRequest, tx?: PrismaTx) {
+    const fn = async (tx: PrismaTx) => {
+      const recent = await tx.coursePublishRequest.findUnique({ where: { courseId }, select: { notes: true } });
+      const { course } = await tx.coursePublishRequest.update({
+        where: { courseId },
+        data: {
+          status: cuurentReq.type == "UPDATE" ? "APPROVED" : "REJECTED",
+          notes: `${recent?.notes}\n\n[instructor]:/CANCELED/`,
+        },
+        select: {
+          course: { select: { metaDraft: { select: { title: true } } } },
+        },
+      });
+      return { title: course.metaDraft?.title! };
+    };
+    return tx ? fn(tx) : withTransaction(async tx => fn(tx));
   },
 
   async approveRequest({

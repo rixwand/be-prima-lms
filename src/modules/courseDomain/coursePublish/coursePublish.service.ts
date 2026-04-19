@@ -1,6 +1,9 @@
 import { PrismaTx } from "../../../common/libs/prisma";
 import { withTransaction } from "../../../common/libs/prisma/transaction";
 import { ApiError } from "../../../common/utils/http";
+import { NOTIFICATION } from "../../../config";
+import notificationService from "../../notification/notification.service";
+import { CreateNotification } from "../../notification/notification.type";
 import { courseRepo } from "../course/course.repository";
 import courseDraftRepo from "../courseDraft/metaDraft.repository";
 import { coursePublishRepository } from "./coursePublish.repository";
@@ -13,6 +16,43 @@ const isExistingRequest = async (reqId: number, tx?: PrismaTx) => {
   } else return existingRequest;
 };
 
+const notifyAdmin = async ({ courseTitle, type }: { courseTitle: string; type: "NEW" | "CANCEL" }, tx?: PrismaTx) => {
+  const payload: Omit<CreateNotification, "userId"> =
+    type == "NEW"
+      ? {
+          title: "New Course Submitted",
+          message: `A new course "${courseTitle}" has been submitted for review.`,
+          type: NOTIFICATION.TYPES.COURSE_SUBMISSION,
+        }
+      : {
+          title: "Course Publish Request Canceled",
+          message: `The submission for course "${courseTitle}" has been cancelled.`,
+          type: NOTIFICATION.TYPES.COURSE_SUBMISSION_CANCELED,
+        };
+  return notificationService.createAdminNoification(payload, tx);
+};
+
+const notifyInstructor = async (
+  { courseTitle, type, instructorId }: { courseTitle: string; type: "APPROVE" | "REJECT"; instructorId: number },
+  tx?: PrismaTx,
+) => {
+  const payload: CreateNotification =
+    type == "APPROVE"
+      ? {
+          userId: instructorId,
+          title: "Course Publish Request Approved",
+          message: `Your course "${courseTitle}" has been approved and is now published.`,
+          type: NOTIFICATION.TYPES.COURSE_APPROVED,
+        }
+      : {
+          userId: instructorId,
+          title: "Course Publish Request Rejected",
+          message: `Your course "${courseTitle}" has been rejected. Please review the feedback and resubmit.`,
+          type: NOTIFICATION.TYPES.COURSE_REJECTED,
+        };
+  return notificationService.createUserNotfication(payload, tx);
+};
+
 export const coursePublishService = {
   async createRequest(data: Omit<ICreateCoursePublishRequest, "type">, courseId: number) {
     const existingRequest = await coursePublishRepository.findByCourseId(courseId);
@@ -20,37 +60,55 @@ export const coursePublishService = {
       throw new ApiError(409, "A publish request for this course already exists.");
     }
     if (existingRequest && existingRequest.status == "REJECTED") {
-      data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
-      return coursePublishRepository.updateStatus({
-        courseId,
-        id: existingRequest.id,
-        data: {
-          notes: data.notes,
-          status: "PENDING",
-        },
+      return withTransaction(async tx => {
+        data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
+        const coursePubReq = await coursePublishRepository.updateStatus(
+          {
+            courseId,
+            id: existingRequest.id,
+            data: {
+              notes: data.notes,
+              status: "PENDING",
+            },
+          },
+          tx,
+        );
+        await notifyAdmin({ type: "NEW", courseTitle: coursePubReq.courseTitle }, tx);
+        return coursePubReq;
       });
     }
     if (existingRequest && existingRequest.status == "APPROVED") {
       const requiresApproval = await courseDraftRepo.isRequiresApproval(courseId);
       if (!requiresApproval) throw new ApiError(409, "Course already published and no changes detected");
-      data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
-      return coursePublishRepository.updateStatus({
-        courseId,
-        id: existingRequest.id,
-        data: {
-          notes: data.notes,
-          status: "PENDING",
-          type: "UPDATE",
-        },
+      return withTransaction(async tx => {
+        data.notes = `${existingRequest.notes}\n\n[instructor]: ${data.notes}`;
+        const coursePubReq = await coursePublishRepository.updateStatus(
+          {
+            courseId,
+            id: existingRequest.id,
+            data: {
+              notes: data.notes,
+              status: "PENDING",
+              type: "UPDATE",
+            },
+          },
+          tx,
+        );
+        await notifyAdmin({ type: "NEW", courseTitle: coursePubReq.courseTitle }, tx);
+        return coursePubReq;
       });
     } else
-      return coursePublishRepository.create(
-        {
-          notes: `[instructor]: ${data.notes}`,
-          type: "NEW",
-        },
-        courseId,
-      );
+      return withTransaction(async tx => {
+        const coursePubReq = await coursePublishRepository.create(
+          {
+            notes: `[instructor]: ${data.notes}`,
+            type: "NEW",
+          },
+          courseId,
+        );
+        await notifyAdmin({ type: "NEW", courseTitle: coursePubReq.course.metaDraft?.title! }, tx);
+        return coursePubReq;
+      });
   },
 
   listRequest: async (queries: GetCoursePublishRequestQueries) => {
@@ -100,7 +158,11 @@ export const coursePublishService = {
             db: tx,
           });
           const { title } = await courseDraftRepo.updateMeta({ requiresApproval: [] }, draftMetaC.id, tx);
-          return { courseTitle: title };
+          await notifyInstructor(
+            { courseTitle: title, instructorId: existingRequest.course.ownerId, type: "APPROVE" },
+            tx,
+          );
+          return { courseTitle: title, ownerId: existingRequest.course.ownerId };
         });
       }
       await coursePublishRepository.approveRequest({
@@ -109,21 +171,44 @@ export const coursePublishService = {
         notes: existingRequest.notes,
         db: tx,
       });
-      return await courseRepo.publishCourse({ id: existingRequest.courseId, db: tx });
+      const res = await courseRepo.publishCourse({ id: existingRequest.courseId, db: tx });
+      await notifyInstructor(
+        {
+          courseTitle: res.courseTitle,
+          instructorId: existingRequest.course.ownerId,
+          type: "APPROVE",
+        },
+        tx,
+      );
+      return { ...res, ownerId: existingRequest.course.ownerId };
     });
   },
 
   async rejectRequest({ reqId, userId, notes }: { reqId: number; userId: number; notes?: string }) {
     const existingRequest = await isExistingRequest(reqId);
     if (existingRequest.status != "PENDING") throw new ApiError(404, "Pending Course not found");
-    return await coursePublishRepository.updateStatus({
-      id: existingRequest.id,
-      courseId: existingRequest.courseId,
-      data: {
-        status: "REJECTED",
-        notes: `${existingRequest.notes}\n\n[admin]:/REJECTED/ ${notes}`,
-        reviewedById: userId,
-      },
+    return withTransaction(async tx => {
+      const res = await coursePublishRepository.updateStatus(
+        {
+          id: existingRequest.id,
+          courseId: existingRequest.courseId,
+          data: {
+            status: "REJECTED",
+            notes: `${existingRequest.notes}\n\n[admin]:/REJECTED/ ${notes}`,
+            reviewedById: userId,
+          },
+        },
+        tx,
+      );
+      await notifyInstructor(
+        {
+          courseTitle: res.courseTitle,
+          type: "REJECT",
+          instructorId: existingRequest.course.ownerId,
+        },
+        tx,
+      );
+      return res;
     });
   },
 
@@ -132,8 +217,17 @@ export const coursePublishService = {
     if (!existingRequest || existingRequest.status !== "PENDING")
       throw new ApiError(404, "A pending publish request for this course is not found.");
     if (existingRequest.reviewedById) {
-      return coursePublishRepository.cancelResubmittedRequest(courseId, existingRequest);
-    } else return coursePublishRepository.deleteRequest(courseId);
+      return withTransaction(async tx => {
+        const canceledRequest = await coursePublishRepository.cancelResubmittedRequest(courseId, existingRequest, tx);
+        await notifyAdmin({ courseTitle: canceledRequest.title, type: "CANCEL" }, tx);
+        return canceledRequest;
+      });
+    } else
+      return withTransaction(async tx => {
+        const deletedReq = await coursePublishRepository.deleteRequest(courseId);
+        await notifyAdmin({ courseTitle: deletedReq.title, type: "CANCEL" }, tx);
+        return deletedReq;
+      });
   },
 
   // async unPublish(courseId:number) {
