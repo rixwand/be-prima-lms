@@ -1,5 +1,5 @@
-import { AsyncRequestHandler, asyncHandler } from "../../../common/utils/http";
-import { validate } from "../../../common/utils/validation";
+import { AsyncRequestHandler, asyncHandler } from "../../../../common/utils/http";
+import { validate } from "../../../../common/utils/validation";
 import { courseSectionService } from "./courseSection.service";
 import {
   createSectionSchema,
@@ -22,9 +22,9 @@ const create: AsyncRequestHandler = async (req, res) => {
 const createWithLessons: AsyncRequestHandler = async (req, res) => {
   const courseId = req.course?.id!;
   const { sections } = await validate(createSectionsWithLessonsSchema, req.body);
-  const { sectionCount, lessonCount } = await courseSectionService.appendSectionsWithLessons(sections, courseId);
+  const { sectionCount, itemCount } = await courseSectionService.appendSectionsWithLessons(sections, courseId);
   res.status(200).json({
-    data: { message: `success add ${sectionCount} course sections and ${lessonCount} lessons` },
+    data: { message: `success add ${sectionCount} course sections and ${itemCount} lessons` },
   });
 };
 

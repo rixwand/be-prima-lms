@@ -160,22 +160,45 @@ export const courseRepo = {
             ...(sections
               ? {
                   sections: {
-                    create: sections.map(({ title, lessons }, i) => ({
+                    create: sections.map(({ title, items }, i) => ({
                       title: title,
                       position: i + 1,
-                      lessons: {
-                        ...(lessons
-                          ? {
-                              create: lessons.map(({ durationSec, summary, contentJson, ...lesson }, li) => ({
-                                ...lesson,
-                                contentLive: comingSoonLesson,
-                                contentDraft: contentJson,
-                                slug: slugify(lesson.title),
+                      ...(items && items.length > 0
+                        ? {
+                            items: {
+                              create: items.map(({ summary, content, ...item }, li) => ({
                                 position: li + 1,
+                                slug: `${slugify(item.title)}-${i + 1}-${li + 1}-${Date.now().toString(36).slice(-4)}`,
+                                title: item.title,
+                                isPreview: item.isPreview ?? false,
+                                type: item.type,
+                                // TODO: Apply for forum and quiz type condition
+                                ...(item.type == "LESSON"
+                                  ? {
+                                      lesson: {
+                                        create: {
+                                          summary: summary ?? null,
+                                          contentLive: comingSoonLesson,
+                                          contentDraft: content as any,
+                                        },
+                                      },
+                                    }
+                                  : item.type == "FORUM"
+                                    ? {
+                                        // how do i create the forum here, its error
+                                        forum: { create: {} },
+                                      }
+                                    : {
+                                        quiz: {
+                                          create: {
+                                            description: (content as { description: string }).description,
+                                          },
+                                        },
+                                      }),
                               })),
-                            }
-                          : {}),
-                      },
+                            },
+                          }
+                        : {}),
                     })),
                   },
                 }
@@ -422,8 +445,27 @@ export const courseRepo = {
         sections: {
           where: { publishedAt: { not: null } },
           select: {
+            id: true,
             title: true,
-            lessons: { where: { publishedAt: { not: null } }, select: { title: true }, orderBy: { position: "asc" } },
+            items: {
+              where: {
+                type: "LESSON",
+                publishedAt: { not: null },
+                removedAt: null,
+                lesson: { isNot: null },
+              },
+              select: {
+                id: true,
+                slug: true,
+                title: true,
+                isPreview: true,
+                publishedAt: true,
+                removedAt: true,
+                position: true,
+                lesson: { select: { id: true, summary: true } },
+              },
+              orderBy: { position: "asc" },
+            },
           },
           orderBy: { position: "asc" },
         },

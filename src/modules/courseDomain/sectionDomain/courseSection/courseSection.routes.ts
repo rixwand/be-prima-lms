@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { AUTH } from "../../../config";
-import { requireCourseOwnership, requireHierarcy } from "../../../middlewares/course.middleware";
-import requirePermission from "../../../middlewares/rbac.middleware";
+import { AUTH } from "../../../../config";
+import { requireCourseOwnership, requireHierarcy } from "../../../../middlewares/course.middleware";
+import requirePermission from "../../../../middlewares/rbac.middleware";
 import { courseSectionController } from "./courseSection.controller";
 
 const courseSectionRoutes = Router({ mergeParams: true });

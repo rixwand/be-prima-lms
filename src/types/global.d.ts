@@ -18,7 +18,7 @@ declare global {
         publishedAt?: Date | null;
       };
       section?: { id: number; courseId: number; publishedAt: Date | null };
-      lesson?: { id: number; sectionId: number; publishedAt: Date | null };
+      sectionItem?: { id: number; sectionId: number; publishedAt: Date | null };
     }
   }
 }

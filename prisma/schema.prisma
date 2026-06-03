@@ -79,6 +79,8 @@ model User {
   mediaAssets   MediaAsset[]
   orders        Order[]
   enrollments   Enrollment[]
+  forumThreads       ForumThread[]
+  forumThreadsReply  ForumThreadReply[]
 
   @@map("users")
   activationTokens ActivationToken[]
@@ -354,7 +356,7 @@ model CourseSection {
   removedAt   DateTime?   
 
   course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  sectionItem SectionItem[]
+  items SectionItem[]
 
   @@unique([courseId, position])
   @@map("course_sections")
@@ -365,39 +367,124 @@ model SectionItem {
   sectionId   Int
   type        SectionItemType
   position    Int
-
-  lessonId    Int? @unique
-  quizId      Int?
-  forumId     Int?
-
-  section     CourseSection @relation(fields: [sectionId], references: [id])
-  lesson      Lesson? @relation(fields: [lessonId], references: [id])
-}
-
-model Lesson {
-  id          Int @id @default(autoincrement())
-  slug        String
+  slug        String  @unique
   title       String
-  summary     String?
-  durationSec Int?
+  durationSec Int @default(0)
   isPreview   Boolean @default(false)
-
-  // VISIBILITY FIX
-  contentDraft Json      // instructor edits
-  contentLive  Json       // students read
 
   publishedAt DateTime?
   removedAt   DateTime?   //  soft delete
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  section     CourseSection @relation(fields: [sectionId], references: [id])
+  lesson      Lesson? 
+  forum       Forum?
+  quiz        Quiz?
+  learnProgress LearnProgress[]
 
-  lessonProgress LessonProgress[]
-  sectionItem   SectionItem?
+  @@map("section_items")
+}
+
+model Quiz {
+  id          Int @id @default(autoincrement())
+
+  description String @db.Text
+  
+  sectionItemId Int @unique
+  sectionItem SectionItem @relation(fields: [sectionItemId], references: [id])
+
+  publishedData Json?
+
+  questions   QuizQuestion[]
+  @@map("quiz")
+}
+
+model QuizQuestion {
+  id          Int @id @default(autoincrement())
+  quizId      Int
+  quiz        Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  question    String @db.Text
+  position    Int
+  multipleAnswer Boolean @default(false)
+  estimatedTimesSecond Int @default(0)
+  points      Int @default(1)
+
+  options     QuizOption[]
+  @@unique([quizId, position])
+  @@map("quiz_questions")
+}
+
+model QuizOption {
+  id          Int @id @default(autoincrement())
+  questionId  Int
+  question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  value        String
+  isCorrect   Boolean @default(false)
+
+  position    Int
+  @@unique([questionId, position])
+  @@map("quiz_options")
+}
+
+model Lesson {
+  id          Int @id @default(autoincrement())
+  sectionItemId Int   @unique
+  summary     String?
+
+  // VISIBILITY FIX
+  contentDraft Json      // instructor edits
+  contentLive  Json       // students read
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sectionItem   SectionItem @relation(fields: [sectionItemId], references: [id], onDelete: Cascade)     
 
   @@map("lessons")
 }
 
+model Forum {
+  id            Int @id @default(autoincrement())
+  sectionItemId Int @unique
+
+  sectionItem   SectionItem @relation(fields: [sectionItemId], references: [id], onDelete: Cascade)
+
+  threads       ForumThread[]
+  @@map("forum")
+}
+
+model ForumThread {
+  id            Int @id @default(autoincrement())
+
+  title         String
+  content       Json?
+
+  forumId       Int
+  forum         Forum   @relation(fields: [forumId], references: [id])
+
+  authorId      Int
+  author        User    @relation(fields: [authorId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("forum_thread")
+}
+
+model ForumThreadReply {
+  id            Int @id @default(autoincrement())
+
+  content       Json
+
+  authorId      Int
+  author        User    @relation(fields: [authorId], references: [id])
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("forum_thread_replies")
+}
 
 /* =========================
    MEDIA (ASSET-LEVEL CONTROL)
@@ -464,7 +551,7 @@ model Enrollment {
 
   user      User        @relation(fields: [userId], references: [id])
   course    Course      @relation(fields: [courseId], references: [id])
-  lessonProgress LessonProgress[]
+  learnProgress LearnProgress[]
 
   @@index([userId])
   @@unique([userId, courseId])
@@ -482,19 +569,19 @@ enum LessonProgressStatus {
   COMPLETED
 }
 
-model LessonProgress {
+model LearnProgress {
   id            Int          @id @default(autoincrement())
 
-  lessonId      Int
+  sectionItemId Int
   enrollmentId  String
 
   enrollment    Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  lesson        Lesson      @relation(fields: [lessonId], references: [id],onDelete: Cascade)
+  sectionItem   SectionItem @relation(fields: [sectionItemId], references: [id], onDelete: Cascade)
 
   status        LessonProgressStatus
   @@index([enrollmentId])
   @@index([enrollmentId, status])
-  @@unique([lessonId, enrollmentId])
+  @@unique([sectionItemId, enrollmentId])
   @@map("lesson_progress")
 }
 

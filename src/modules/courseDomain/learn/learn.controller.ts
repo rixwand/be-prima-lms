@@ -22,13 +22,13 @@ const startCourse: AsyncRequestHandler = async (req, res) => {
   res.status(200).json({ data });
 };
 const lessonComplete: AsyncRequestHandler = async (req, res) => {
-  const { id: lessonId } = await validateIdParams(req.params.lessonId);
-  const { lessonId: lId, status } = await learnService.lessonComplete({
+  const { id: sectionItemId } = await validateIdParams(req.params.sectionItemId);
+  const { sectionItemId: lId, status } = await learnService.lessonComplete({
     courseId: req.course?.id!,
-    lessonId,
+    sectionItemId,
     userId: req.user?.id!,
   });
-  res.status(200).json({ data: { lessonId: lId, status } });
+  res.status(200).json({ data: { sectionItemId: lId, status } });
 };
 
 export default {

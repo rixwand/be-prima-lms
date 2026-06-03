@@ -1,17 +1,17 @@
-import { withTransaction } from "../../../common/libs/prisma/transaction";
-import { comingSoonLesson, slugify } from "../../../common/utils/course";
-import { ApiError } from "../../../common/utils/http";
-import { CourseStatus } from "../course/course.types";
-import { lessonService } from "../lesson/lesson.service";
-import type { ILessonPayload, ILessonsCreate } from "../lesson/lesson.types";
-import lessonProgressRepository from "../lessonProgress/lessonProgress.repository";
+import { withTransaction } from "../../../../common/libs/prisma/transaction";
+import { comingSoonLesson, slugify } from "../../../../common/utils/course";
+import { ApiError } from "../../../../common/utils/http";
+import { CourseStatus } from "../../course/course.types";
+import lessonProgressRepository from "../../learnProgress/learnProgress.repository";
+import { sectionItemService } from "../sectionItem/sectionItem.service";
+import type { ISectionItemLessonsCreate, ISectionItemPayload } from "../sectionItem/sectionItem.types";
 import { courseSectionRepo } from "./courseSection.repository";
 
 type ReorderExistingSection = { id: number; position: number };
 type ReorderNewSection = {
   position: number;
   title: string;
-  lessons?: ILessonPayload[] | undefined;
+  items?: ISectionItemPayload[] | undefined;
   id?: never;
 };
 
@@ -41,9 +41,9 @@ export const courseSectionService = {
     sections: Array<{
       title: string;
       isPublished?: boolean | undefined;
-      lessons?:
+      items?:
         | Array<
-            ILessonPayload & {
+            ISectionItemPayload & {
               isPublished?: boolean | undefined;
             }
           >
@@ -57,7 +57,7 @@ export const courseSectionService = {
         _max: { position: true },
       });
       let sectionPosition = (_max.position ?? 0) + 1;
-      let lessonCount = 0;
+      let itemCount = 0;
       const now = new Date();
 
       for (const section of sections) {
@@ -71,34 +71,44 @@ export const courseSectionService = {
         });
         sectionPosition += 1;
 
-        if (!section.lessons?.length) continue;
+        if (!section.items?.length) continue;
 
         const slugCounter = new Map<string, number>();
-        const lessonsPayload = section.lessons.map((lesson, index) => {
-          const baseSlug = slugify(lesson.title) || "lesson";
+        for (const [index, item] of section.items.entries()) {
+          const baseSlug = slugify(item.title) || "item";
           const nextIndex = (slugCounter.get(baseSlug) ?? 0) + 1;
           slugCounter.set(baseSlug, nextIndex);
-          const slug = nextIndex === 1 ? baseSlug : `${baseSlug}-${nextIndex}`;
+          const slug = `${baseSlug}-${createdSection.id}-${nextIndex}-${Date.now().toString(36).slice(-4)}`;
 
-          return {
-            sectionId: createdSection.id,
-            slug,
-            title: lesson.title,
-            summary: lesson.summary ?? null,
-            durationSec: lesson.durationSec ?? null,
-            isPreview: lesson.isPreview ?? false,
-            position: index + 1,
-            contentLive: lesson.isPublished ? lesson.contentJson : comingSoonLesson,
-            contentDraft: lesson.contentJson,
-            ...(lesson.isPublished ? { publishedAt: now } : {}),
-          };
-        });
-
-        await tx.lesson.createMany({ data: lessonsPayload });
-        lessonCount += lessonsPayload.length;
+          await tx.sectionItem.create({
+            data: {
+              sectionId: createdSection.id,
+              type: item.type,
+              slug,
+              title: item.title,
+              isPreview: item.isPreview ?? false,
+              ...(item.isPublished ? { publishedAt: now } : {}),
+              position: index + 1,
+              ...(!item.content
+                ? {}
+                : item.type == "LESSON"
+                  ? {
+                      lesson: {
+                        create: {
+                          summary: item.summary ?? null,
+                          contentLive: item.isPublished ? item.content : comingSoonLesson,
+                          contentDraft: item.content,
+                        },
+                      },
+                    }
+                  : {}),
+            },
+          });
+          itemCount += 1;
+        }
       }
 
-      return { sectionCount: sections.length, lessonCount };
+      return { sectionCount: sections.length, itemCount };
     });
   },
 
@@ -132,7 +142,7 @@ export const courseSectionService = {
 
     type FinalEntry =
       | { kind: "existing"; id: number }
-      | { kind: "new"; title: string; lessons?: ILessonPayload[] | undefined };
+      | { kind: "new"; title: string; items?: ISectionItemPayload[] | undefined };
 
     const placement: (FinalEntry | null)[] = Array.from({ length: totalSectionsAfterReorder }, () => null);
     const sortedReorders = [...listReorder].sort((a, b) => a.position - b.position);
@@ -148,7 +158,7 @@ export const courseSectionService = {
       if (isExistingSection(item)) {
         placement[index] = { kind: "existing", id: item.id };
       } else {
-        placement[index] = { kind: "new", title: item.title, lessons: item.lessons };
+        placement[index] = { kind: "new", title: item.title, items: item.items };
       }
     }
 
@@ -183,15 +193,16 @@ export const courseSectionService = {
           courseId,
         });
 
-        if (entry.lessons && entry.lessons.length > 0) {
-          const lessonsToCreate: ILessonsCreate = entry.lessons.map(lesson => ({
-            title: lesson.title,
-            summary: lesson.summary,
-            durationSec: lesson.durationSec,
-            isPreview: lesson.isPreview ?? false,
-            contentJson: lesson.contentJson,
+        if (entry.items && entry.items.length > 0) {
+          const itemsToCreate: ISectionItemLessonsCreate = entry.items.map(item => ({
+            title: item.title,
+            summary: item.summary,
+            durationSec: item.durationSec,
+            isPreview: item.isPreview ?? false,
+            content: item.content,
+            type: item.type,
           }));
-          await lessonService.create(lessonsToCreate, createdSection.id);
+          await sectionItemService.createMany(itemsToCreate, createdSection.id);
         }
 
         finalOrder.push({ id: createdSection.id, position: i + 1 });
@@ -204,11 +215,15 @@ export const courseSectionService = {
   },
 
   async remove(ids: { id: number; courseId: number }) {
-    return courseSectionRepo.remove(ids);
+    const result = await courseSectionRepo.remove(ids);
+    await courseSectionRepo.compactPositions(ids.courseId);
+    return result;
   },
 
   async removeMany(props: { ids: number[]; courseId: number }) {
-    return courseSectionRepo.removeMany(props);
+    const result = await courseSectionRepo.removeMany(props);
+    await courseSectionRepo.compactPositions(props.courseId);
+    return result;
   },
 
   async publish({

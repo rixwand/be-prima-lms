@@ -6,7 +6,7 @@ import { ApiError } from "../../common/utils/http";
 import { courseRepo } from "../courseDomain/course/course.repository";
 import { MetaApprovedPayload } from "../courseDomain/course/course.types";
 import enrollmentRepository from "../courseDomain/enrollment/enrollment.repository";
-import lessonProgressRepository from "../courseDomain/lessonProgress/lessonProgress.repository";
+import lessonProgressRepository from "../courseDomain/learnProgress/learnProgress.repository";
 import invoiceRepository from "../invoice/invoice.repository";
 import { userRepo } from "../users/user.repository";
 import orderRepository from "./order.repository";

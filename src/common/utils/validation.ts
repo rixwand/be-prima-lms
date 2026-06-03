@@ -1,4 +1,5 @@
 import * as yup from "yup";
+import { NODE_ENV } from "./env";
 import { formatYupError } from "./error";
 import { ApiError } from "./http";
 
@@ -11,10 +12,12 @@ export const validate = async <T>(schema: yup.Schema<T>, data: any): Promise<yup
     });
     return res;
   } catch (error) {
-    const err = error as yup.ValidationError;
-    console.log(typeof error);
-    const message = formatYupError(err);
-    throw new ApiError(400, JSON.stringify(message));
+    if (error instanceof yup.ValidationError) {
+      const message = formatYupError(error);
+      throw new ApiError(400, JSON.stringify(message));
+    } else {
+      throw new ApiError(500, NODE_ENV == "development" ? JSON.stringify(error) : "Something went wrong");
+    }
   }
 };
 
@@ -23,7 +26,7 @@ export const validateIdParams = async (id: any) =>
     yup.object({
       id: yup.number().positive().integer().required(),
     }),
-    { id }
+    { id },
   );
 
 export async function validateSlugParams(slug: unknown, option?: { optional: false }): Promise<{ slug: string }>;
@@ -34,13 +37,13 @@ export async function validateSlugParams(slug: unknown, option?: { optional: boo
     .string()
     .matches(
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Slug can only contain lowercase letters, numbers, and hyphens (no spaces or special characters)"
+      "Slug can only contain lowercase letters, numbers, and hyphens (no spaces or special characters)",
     );
 
   return validate(
     yup.object({
       slug: !option?.optional ? slugSchema.required("Slug is required") : slugSchema.optional(),
     }),
-    { slug }
+    { slug },
   );
 }

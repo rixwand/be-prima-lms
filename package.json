@@ -11,6 +11,9 @@
     "dev": "ts-node-dev --poll src/index.ts",
     "postinstall": "prisma generate && prisma db seed"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed/index.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.14.0",
     "@socket.io/admin-ui": "^0.5.1",

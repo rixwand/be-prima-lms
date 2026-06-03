@@ -80,12 +80,13 @@ export const courseService = {
   async getPreview(slug: string) {
     const course = await courseRepo.findBySlug(slug);
     if (!course) throw new ApiError(404, "Course not found");
-    const { metaApproved, tags, categories } = course;
+    const { metaApproved, tags, categories, sections, ...data } = course;
     return {
-      ...course,
+      ...data,
       metaApproved: metaApproved ? { ...(metaApproved.payload as Object) } : null,
       tags: tags.map(t => ({ ...t.tag })),
       categories: categories.map(c => ({ ...c.category })),
+      sections,
     };
   },
 
@@ -110,9 +111,8 @@ export const courseService = {
         discounts: true,
         sections: {
           include: {
-            lessons: {
+            items: {
               orderBy: { position: "asc" },
-              omit: { contentDraft: true, contentLive: true },
             },
           },
           orderBy: { position: "asc" },
@@ -120,7 +120,7 @@ export const courseService = {
       },
     });
     if (!course) throw new ApiError(404, "Course not found");
-    const { metaApproved, metaDraft, tags, categories, ...data } = course;
+    const { metaApproved, metaDraft, tags, categories, sections, ...data } = course;
     const draftWithRelations = metaDraft as
       | (CourseMetaDraft & {
           draftCategories: { categoryId: number; isPrimary: boolean; category: { name: string } }[];
@@ -157,6 +157,7 @@ export const courseService = {
         name: c.category.name,
         isPrimary: c.isPrimary,
       })),
+      sections,
       metaApproved: approvedMeta,
       metaDraft: transformedDraft,
       canApplyTierB,

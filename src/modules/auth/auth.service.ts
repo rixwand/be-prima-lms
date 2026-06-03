@@ -3,6 +3,7 @@ import { ACTIVATION_TOKEN_TTL_HOURS, CLIENT_URL } from "../../common/utils/env";
 import { comparePassword, hashPassword, randHex, sha256 } from "../../common/utils/hash";
 import { ApiError } from "../../common/utils/http";
 import { newJti, signAccessToken, signRefreshToken, verifyRefreshToken } from "../../common/utils/jwt";
+import { AUTH } from "../../config";
 import { roleRepo } from "../role/role.repository";
 import { sessionRepo } from "../session/session.repository";
 import { sessionService } from "../session/session.service";
@@ -15,7 +16,7 @@ import { ISendActivationMail, IUserLogin, IUserRegister } from "./auth.types";
 export const authServices = {
   async register({ password, ...user }: IUserRegister) {
     const passwordHash = await hashPassword(password);
-    const role = await roleRepo.findByName("member");
+    const role = await roleRepo.findByName(AUTH.ROLES.MEMBER);
     if (!role) throw new ApiError(500, "Role not found");
     const res = await userRepo.create({ ...user, roleId: role.id, passwordHash });
     try {

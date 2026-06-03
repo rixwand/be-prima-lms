@@ -3,43 +3,80 @@ import { Ids } from "./learn.service";
 
 export default {
   async getCurriculum(id: number) {
-    return prisma.course.findUnique({
+    const course = await prisma.course.findUnique({
       where: { id, takenDownAt: null, publishedAt: { not: null } },
       select: {
         metaApproved: true,
         sections: {
           where: { publishedAt: { not: null } },
           orderBy: { position: "asc" },
-          include: {
-            lessons: {
-              where: { publishedAt: { not: null } },
+          select: {
+            id: true,
+            courseId: true,
+            title: true,
+            position: true,
+            items: {
+              where: {
+                type: "LESSON",
+                publishedAt: { not: null },
+                removedAt: null,
+                lesson: { isNot: null },
+              },
               orderBy: { position: "asc" },
-              select: {
-                id: true,
-                isPreview: true,
-                slug: true,
-                sectionId: true,
-                title: true,
-                durationSec: true,
-                lessonProgress: { select: { status: true } },
+              include: {
+                learnProgress: { select: { status: true } },
               },
             },
           },
         },
       },
     });
+
+    if (!course) return null;
+
+    return {
+      ...course,
+      sections: course.sections.map(({ items, ...section }) => ({
+        ...section,
+        lessons: items.map(item => ({
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          isPreview: item.isPreview,
+          durationSec: null,
+          sectionId: section.id,
+          position: item.position,
+          leearnProgress: item.learnProgress,
+        })),
+      })),
+    };
   },
+
   async getLessonContent({ courseId, lessonId, sectionId }: Ids) {
-    return prisma.lesson.findUnique({
-      where: { sectionId, section: { courseId }, id: lessonId },
-      select: { contentLive: true },
+    const row = await prisma.sectionItem.findFirst({
+      where: {
+        sectionId,
+        type: "LESSON",
+        publishedAt: { not: null },
+        removedAt: null,
+        section: { courseId },
+        lesson: { is: { id: lessonId } },
+      },
+      select: {
+        lesson: {
+          select: {
+            contentLive: true,
+          },
+        },
+      },
     });
+
+    return row?.lesson ?? null;
   },
 
   async startCourse({ courseId, userId }: { courseId: number; userId: number }) {
     return prisma.$transaction(
       async tx => {
-        // Get enrollment
         const enrollment = await tx.enrollment.findUnique({
           where: {
             userId_courseId: {
@@ -52,11 +89,13 @@ export default {
 
         if (!enrollment) throw new Error("Not enrolled");
 
-        //  Find first NOT completed lesson
-        const nextLesson = await tx.lesson.findFirst({
+        const nextItem = await tx.sectionItem.findFirst({
           where: {
+            type: "LESSON",
+            publishedAt: { not: null },
+            removedAt: null,
             section: { courseId },
-            lessonProgress: {
+            learnProgress: {
               some: {
                 enrollmentId: enrollment.id,
                 status: { not: "COMPLETED" },
@@ -67,12 +106,14 @@ export default {
           select: { slug: true },
         });
 
-        // If everything completed → open last lesson
-        if (!nextLesson) {
-          return tx.lesson.findFirst({
+        if (!nextItem) {
+          return tx.sectionItem.findFirst({
             where: {
+              type: "LESSON",
+              publishedAt: { not: null },
+              removedAt: null,
               section: { courseId },
-              lessonProgress: {
+              learnProgress: {
                 some: {
                   enrollmentId: enrollment.id,
                 },
@@ -83,7 +124,7 @@ export default {
           });
         }
 
-        return nextLesson;
+        return nextItem;
       },
       { timeout: 30000 },
     );

@@ -38,7 +38,10 @@ export const updateCategorySchema = yup
   })
   .required()
   .noUnknown(true)
-  .test("at-least-one-field", "At least one field must be provided", value => !!value && Object.keys(value).length > 0);
+  .test("at-least-one-field", "At least one field must be provided", value => {
+    if (value == null || typeof value !== "object" || Array.isArray(value)) return true;
+    return Object.keys(value).length > 0;
+  });
 
 export const listCategoryParams = yup
   .object({

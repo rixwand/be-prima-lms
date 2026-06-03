@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { prisma, PrismaTx } from "../../../common/libs/prisma";
-import { ApiError } from "../../../common/utils/http";
+import { prisma, PrismaTx } from "../../../../common/libs/prisma";
+import { ApiError } from "../../../../common/utils/http";
 
 type SectionRow = { id: number; position: number };
 
@@ -58,7 +58,7 @@ export const courseSectionRepo = {
   getSectionsForCourse,
 
   async getSectionsWithLessons(courseId: number) {
-    return prisma.courseSection.findMany({
+    const sections = await prisma.courseSection.findMany({
       where: { courseId, publishedAt: { not: null } },
       orderBy: { position: "asc" },
       select: {
@@ -66,22 +66,47 @@ export const courseSectionRepo = {
         courseId: true,
         title: true,
         position: true,
-        lessons: {
-          where: { publishedAt: { not: null } },
+        items: {
+          where: {
+            type: "LESSON",
+            publishedAt: { not: null },
+            removedAt: null,
+            lesson: { isNot: null },
+          },
           orderBy: { position: "asc" },
           select: {
-            id: true,
-            sectionId: true,
-            title: true,
-            summary: true,
-            position: true,
             slug: true,
-            durationSec: true,
+            title: true,
             isPreview: true,
+            publishedAt: true,
+            removedAt: true,
+            position: true,
+            lesson: {
+              select: {
+                id: true,
+                summary: true,
+              },
+            },
           },
         },
       },
     });
+
+    return sections.map(({ items, ...section }) => ({
+      ...section,
+      lessons: items
+        .filter(items => items.lesson)
+        .map(sectionItem => ({
+          ...sectionItem.lesson!,
+          slug: sectionItem.slug,
+          title: sectionItem.title,
+          isPreview: sectionItem.isPreview,
+          sectionId: section.id,
+          position: sectionItem.position,
+          publishedAt: sectionItem.publishedAt,
+          removedAt: sectionItem.removedAt,
+        })),
+    }));
   },
 
   async getCourseTitle(courseId: number) {
@@ -100,6 +125,8 @@ export const courseSectionRepo = {
   },
 
   async bulkApplyPositionsTwoPhase(courseId: number, items: SectionRow[]) {
+    if (!items.length) return;
+
     const VALUES = Prisma.join(items.map(it => Prisma.sql`(${it.id}, ${it.position})`));
 
     await prisma.$transaction(
@@ -138,6 +165,13 @@ export const courseSectionRepo = {
     });
   },
 
+  async compactPositions(courseId: number) {
+    const sections = await getSectionsForCourse(courseId, { id: true, position: true });
+    const compacted = sections.map((section, index) => ({ id: section.id, position: index + 1 }));
+    await this.bulkApplyPositionsTwoPhase(courseId, compacted);
+    return compacted;
+  },
+
   async publish({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
     return db.courseSection.update({
       where: { id, courseId },
@@ -146,9 +180,22 @@ export const courseSectionRepo = {
   },
 
   async countLesson({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
-    return db.courseSection.findUnique({
+    const section = await db.courseSection.findUnique({
       where: { id, courseId },
-      select: { _count: { select: { lessons: { where: { publishedAt: { not: null } } } } } },
+      select: { id: true },
     });
+    if (!section) return null;
+
+    const lessons = await db.sectionItem.count({
+      where: {
+        sectionId: id,
+        type: "LESSON",
+        publishedAt: { not: null },
+        removedAt: null,
+        lesson: { isNot: null },
+      },
+    });
+
+    return { _count: { lessons } };
   },
 };

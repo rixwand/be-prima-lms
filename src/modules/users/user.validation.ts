@@ -8,7 +8,10 @@ export const updateUserSchema = yup
   .test(
     "at-least-one-field",
     "At least one field must be provided",
-    value => value != null && Object.keys(value).length > 0
+    value => {
+      if (value == null || typeof value !== "object" || Array.isArray(value)) return true;
+      return Object.keys(value).length > 0;
+    }
   )
   .required()
   .noUnknown();

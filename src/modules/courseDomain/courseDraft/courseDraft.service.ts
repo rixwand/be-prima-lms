@@ -19,7 +19,6 @@ import tagDraftRepository from "./tagDraft.repository";
 export default {
   async create(course: ICourseCreate, ownerId: number) {
     const { discount, tags, sections, categories, ...courseData } = course;
-    console.log();
     return courseRepo.create({
       course: {
         ...courseData,

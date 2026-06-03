@@ -1,7 +1,7 @@
 import { $Enums } from "@prisma/client";
 import * as yup from "yup";
 import { slugify } from "../../../common/utils/course";
-import { lessonSchema } from "../lesson/lesson.validation";
+import { sectionItemSchema } from "../sectionDomain/sectionItem/sectionItem.validation";
 import { COURSE_STATUS, CourseStatus } from "./course.types";
 
 const DISCOUNT_TYPES = Object.values($Enums.DiscountType) as readonly $Enums.DiscountType[];
@@ -9,12 +9,19 @@ const DISCOUNT_TYPES = Object.values($Enums.DiscountType) as readonly $Enums.Dis
 const courseCategoriesScema = yup
   .object({
     ids: yup.array().of(yup.number().required()).min(1).max(3).required(),
-    primaryId: yup.number().required(),
-  })
-  .test({
-    name: "invalid primaryId",
-    message: `"primaryId" must be included in "ids"`,
-    test: v => v.ids.includes(v.primaryId),
+    primaryId: yup
+      .number()
+      .required()
+      .test({
+        name: "invalid primaryId",
+        message: `"primaryId" must be included in "ids"`,
+        test: function (primaryId) {
+          const ids = (this.parent as { ids?: unknown } | undefined)?.ids;
+          if (primaryId == null || ids == null) return true;
+          if (!Array.isArray(ids)) return true;
+          return ids.includes(primaryId);
+        },
+      }),
   })
   .noUnknown()
   .required();
@@ -41,7 +48,7 @@ export const createCourseSchema = yup
       .array(
         yup.object({
           title: yup.string().required(),
-          lessons: yup.array(lessonSchema).optional(),
+          items: yup.array(sectionItemSchema).optional(),
         }),
       )
       .optional(),
@@ -98,41 +105,53 @@ export const updateCourseSchema = yup
       )
       .optional(),
   })
-  .test(
-    "at-least-one-field",
-    "At least one field must be provided",
-    value => value != null && Object.keys(value).length > 0,
-  )
+  .test("at-least-one-field", "At least one field must be provided", value => {
+    if (value == null || typeof value !== "object" || Array.isArray(value)) return true;
+    return Object.keys(value).length > 0;
+  })
   .noUnknown()
   .required();
 
 export const updateCourseTagsSchema = yup
   .object({
-    disconnectSlugs: yup.array().of(yup.string().trim().required().max(25)).optional(),
-    createOrConnect: yup.array().of(yup.string().trim().required().max(25)).optional(),
+    disconnectSlugs: yup
+      .array()
+      .of(yup.string().trim().required().max(25))
+      .optional()
+      .test("uniq-disconnect-ci", "disconnectSlugs must be unique (case-insensitive).", disconnectSlugs => {
+        if (!Array.isArray(disconnectSlugs)) return true;
+        const arr = disconnectSlugs.filter((s): s is string => typeof s === "string").map(s => s.trim().toLowerCase());
+        return new Set(arr).size === arr.length;
+      }),
+    createOrConnect: yup
+      .array()
+      .of(yup.string().trim().required().max(25))
+      .optional()
+      .test("no-overlap", "Overlapping tags: a tag slated for creation also appears in disconnectSlugs.", function (v) {
+        const disconnectSlugs = (this.parent as { disconnectSlugs?: unknown } | undefined)?.disconnectSlugs;
+        if (!Array.isArray(v) || !Array.isArray(disconnectSlugs)) return true;
+
+        const createOrConnect = v.filter((name): name is string => typeof name === "string");
+        const disconnect = disconnectSlugs.filter((slug): slug is string => typeof slug === "string");
+        if (!createOrConnect.length || !disconnect.length) return true;
+
+        const toRemove = new Set(disconnect.map(s => s.trim().toLowerCase()));
+        const overlap = createOrConnect.map(name => slugify(name)).some(slug => toRemove.has(slug));
+        return !overlap;
+      })
+      .test("uniq-create-ci", "createOrConnect must be unique (case-insensitive).", createOrConnect => {
+        if (!Array.isArray(createOrConnect)) return true;
+        const arr = createOrConnect.filter((s): s is string => typeof s === "string").map(s => s.trim().toLowerCase());
+        return new Set(arr).size === arr.length;
+      }),
   })
-  .test(
-    "at-least-one",
-    "Provide at least one of disconnectSlugs or createOrConnect.",
-    v => !!v && (v.disconnectSlugs?.length ?? 0) + (v.createOrConnect?.length ?? 0) > 0,
-  )
-  .test("no-overlap", "Overlapping tags: a tag slated for creation also appears in disconnectSlugs.", v => {
-    if (!v) return true;
-    const { createOrConnect = [], disconnectSlugs = [] } = v;
-    if (!createOrConnect.length || !disconnectSlugs.length) return true;
-    const toRemove = new Set(disconnectSlugs.map(s => s.trim().toLowerCase()));
-    const overlap = createOrConnect.map(name => slugify(name)).some(slug => toRemove.has(slug));
-    return !overlap;
-  })
-  .test("uniq-disconnect-ci", "disconnectSlugs must be unique (case-insensitive).", v => {
-    if (!v?.disconnectSlugs) return true;
-    const arr = v.disconnectSlugs.map(s => s.trim().toLowerCase());
-    return new Set(arr).size === arr.length;
-  })
-  .test("uniq-create-ci", "createOrConnect must be unique (case-insensitive).", v => {
-    if (!v?.createOrConnect) return true;
-    const arr = v.createOrConnect.map(s => s.trim().toLowerCase());
-    return new Set(arr).size === arr.length;
+  .test("at-least-one", "Provide at least one of disconnectSlugs or createOrConnect.", v => {
+    if (v == null || typeof v !== "object" || Array.isArray(v)) return true;
+    const disconnectSlugs = (v as { disconnectSlugs?: unknown }).disconnectSlugs;
+    const createOrConnect = (v as { createOrConnect?: unknown }).createOrConnect;
+    const disconnectCount = Array.isArray(disconnectSlugs) ? disconnectSlugs.length : 0;
+    const createCount = Array.isArray(createOrConnect) ? createOrConnect.length : 0;
+    return disconnectCount + createCount > 0;
   })
   .required()
   .noUnknown();

@@ -10,4 +10,5 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-export type PrismaTx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0] | typeof prisma;
+export type PrismaTransaction = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+export type PrismaTx = PrismaTransaction | typeof prisma;

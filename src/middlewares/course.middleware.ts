@@ -5,7 +5,7 @@ import { validateIdParams, validateSlugParams } from "../common/utils/validation
 import { AUTH } from "../config";
 import { courseRepo } from "../modules/courseDomain/course/course.repository";
 
-type Level = "course" | "section" | "lesson";
+type Level = "course" | "section" | "sectionItem";
 
 export const requireCourseEnrollment = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -85,7 +85,7 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
   try {
     const courseId = (await validateIdParams(req.params.courseId)).id;
     const sectionId = level !== "course" ? (await validateIdParams(req.params.sectionId)).id : null;
-    const lessonId = level === "lesson" ? (await validateIdParams(req.params.lessonId)).id : null;
+    const itemId = level === "sectionItem" ? (await validateIdParams(req.params.itemId)).id : null;
 
     if (level === "course") {
       const course = await prisma.course.findFirst({
@@ -128,9 +128,9 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
     }
 
     // if (level === "lesson") {
-    const lesson = await prisma.lesson.findFirst({
+    const sectionItem = await prisma.sectionItem.findFirst({
       where: {
-        id: lessonId!,
+        id: itemId!,
         section: { id: sectionId!, course: { id: courseId, ...(!isAdmin && { ownerId: req.user?.id! }) } },
       },
       select: {
@@ -147,14 +147,35 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
         publishedAt: true,
       },
     });
-    if (!lesson) return notFound(res, "Lesson not found in this section/course or not owned");
-    req.lesson = { id: lesson.id, sectionId: lesson.sectionId, publishedAt: lesson.publishedAt };
-    req.section = { id: lesson.section.id, courseId: lesson.section.courseId, publishedAt: lesson.section.publishedAt };
+    // itemId !== null
+    //   ? await sectionItemRepo.findSectionItemHierarchyByItemId({
+    //       courseId,
+    //       sectionId: sectionId!,
+    //       itemId,
+    //       ...(!isAdmin ? { ownerId: req.user?.id! } : {}),
+    //     })
+    //   : await sectionItemRepo.findSectionItemHierarchyByEntityId({
+    //       courseId,
+    //       sectionId: sectionId!,
+    //       entityId: lessonId!,
+    //       ...(!isAdmin ? { ownerId: req.user?.id! } : {}),
+    //     });
+    if (!sectionItem) return notFound(res, "Lesson not found in this section/course or not owned");
+    req.sectionItem = {
+      id: sectionItem.id,
+      sectionId: sectionItem.sectionId,
+      publishedAt: sectionItem.publishedAt,
+    };
+    req.section = {
+      id: sectionItem.section.id,
+      courseId: sectionItem.section.courseId,
+      publishedAt: sectionItem.section.publishedAt,
+    };
     req.course = {
-      id: lesson.section.course.id,
-      ownerId: lesson.section.course.ownerId,
-      publishedAt: lesson.section.course.publishedAt,
-      status: getCourseStatus(lesson.section.course),
+      id: sectionItem.section.course.id,
+      ownerId: sectionItem.section.course.ownerId,
+      publishedAt: sectionItem.section.course.publishedAt,
+      status: getCourseStatus(sectionItem.section.course),
     };
     //   return next();
     // }
