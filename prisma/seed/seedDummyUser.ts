@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { CLIENT_URL } from "../../src/common/utils/env";
 import { hashPassword } from "../../src/common/utils/hash";
+import { capitalizeWords } from "../../src/common/utils/string";
 import { AUTH } from "../../src/config";
 import { IUserCreateEntity } from "../../src/modules/users/user.types";
 
@@ -14,7 +15,7 @@ export default async function seedDummyUser(prisma: PrismaClient) {
     const data: Omit<IUserCreateEntity & { role: string }, "roleId">[] = await Promise.all(
       users.map(async ({ name: user, role }) => ({
         email: user + "@mail.com",
-        fullName: user.toUpperCase(),
+        fullName: capitalizeWords(user),
         username: user,
         passwordHash: await hashPassword(user + "123"),
         profilePict: `${CLIENT_URL}/images/user.jpg`,

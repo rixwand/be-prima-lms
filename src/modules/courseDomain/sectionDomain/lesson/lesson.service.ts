@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from "util";
 import { withTransaction } from "../../../../common/libs/prisma/transaction";
 import { isEmptyTipTapDoc } from "../../../../common/utils/course";
 import { ApiError } from "../../../../common/utils/http";
+import { sectionItemRepo } from "../sectionItem/sectionItem.repository";
 import { lessonRepo } from "./lesson.repository";
 import { ILessonPublishContent } from "./lesson.types";
 
@@ -46,7 +47,7 @@ export const lessonService = {
       }
 
       await lessonRepo.update({ lesson: { contentLive: content.contentDraft }, sectionItemId }, tx);
-      // await sectionItemRepo.upda
+      await sectionItemRepo.update(sectionItemId, { publishedAt: new Date() }, tx);
       return "Publish draft content success";
     });
   },

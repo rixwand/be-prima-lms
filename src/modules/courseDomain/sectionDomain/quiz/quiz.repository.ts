@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { InputJsonValue, JsonValue } from "@prisma/client/runtime/library";
 import { PrismaTransaction, PrismaTx, prisma } from "../../../../common/libs/prisma";
 import { withTransaction } from "../../../../common/libs/prisma/transaction";
 import { optionalizeUndefined } from "../../../../common/utils/function";
@@ -7,18 +8,32 @@ import { ICreateQestionSchema, IQuizPublishedSnapshot, IUpdateQestionSchema, IUp
 const quizRepository = {
   update: async (
     sectionItemId: number,
-    { description, publishedData }: Omit<IUpdateQuizSchema, "questions"> & { publishedData?: IQuizPublishedSnapshot },
+    {
+      description,
+      publishedData,
+      topics,
+      passingScorePercent,
+    }: Omit<IUpdateQuizSchema, "questions"> & { publishedData?: IQuizPublishedSnapshot },
     db: PrismaTx = prisma,
   ) => {
     return db.quiz.update({
       where: { sectionItemId },
       data: {
+        ...(passingScorePercent && { passingScorePercent }),
+        ...(topics && topics.length > 0 && { topics }),
         ...(description && { description }),
         ...(publishedData && { publishedData }),
       },
     });
   },
 
+  getQuizAttemptById: async ({ attemptId, userId }: { attemptId: number; userId: number }, db: PrismaTx = prisma) =>
+    db.quizAttempt.findUnique({
+      where: { id: attemptId, userId },
+      include: {
+        snapshot: true,
+      },
+    }),
   createQuestions: async (quizId: number, questions: ICreateQestionSchema[], dbTx?: PrismaTransaction) => {
     const run = (tx: PrismaTransaction) =>
       Promise.all(
@@ -146,6 +161,44 @@ const quizRepository = {
       where: { id: { in: questionIds }, quiz: { sectionItemId: itemId } },
     });
   },
+  getCurrentPublishedVersion: async ({ itemId, sectionId }: { itemId: number; sectionId: number }) => {
+    const item = await prisma.sectionItem.findUnique({
+      where: { id: itemId, sectionId },
+      select: {
+        quiz: {
+          select: {
+            id: true,
+            publishedVersion: true,
+            publishedData: true,
+          },
+        },
+      },
+    });
+    return item?.quiz ?? null;
+  },
+  getOrCreateSnapshot: async ({
+    publishedVersion,
+    quizId,
+    publishedData,
+  }: {
+    quizId: number;
+    publishedVersion: number;
+    publishedData: JsonValue;
+  }) =>
+    await prisma.quizSnapshot.upsert({
+      where: {
+        quizId_publishedVersion: {
+          quizId,
+          publishedVersion,
+        },
+      },
+      update: {},
+      create: {
+        quizId,
+        publishedVersion,
+        data: publishedData as InputJsonValue,
+      },
+    }),
 };
 
 export default quizRepository;

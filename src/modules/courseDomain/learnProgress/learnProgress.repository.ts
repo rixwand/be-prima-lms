@@ -6,11 +6,9 @@ export default {
   async create({ courseId, enrollmentId }: { courseId: number; enrollmentId: string }, db: PrismaTx = prisma) {
     const rows = await db.sectionItem.findMany({
       where: {
-        type: "LESSON",
         publishedAt: { not: null },
         removedAt: null,
         section: { course: { id: courseId, publishedAt: { not: null } } },
-        lesson: { isNot: null },
       },
       orderBy: [{ section: { position: "asc" } }, { position: "asc" }],
       select: {
@@ -46,10 +44,8 @@ export default {
     const rows = await db.sectionItem.findMany({
       where: {
         sectionId,
-        type: "LESSON",
         publishedAt: { not: null },
         removedAt: null,
-        lesson: { isNot: null },
       },
       select: {
         id: true,

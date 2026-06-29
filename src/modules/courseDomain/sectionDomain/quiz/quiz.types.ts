@@ -9,6 +9,7 @@ export interface IUpdateQestionSchema extends InferType<typeof updateQuizQuestio
 
 export interface IQuizPublishedSnapshot extends InputJsonObject {
   description: string;
+  topics: string[];
   questions: {
     question: string;
     position: number;

@@ -179,7 +179,7 @@ export const courseSectionRepo = {
     });
   },
 
-  async countLesson({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
+  async countItems({ courseId, id }: { id: number; courseId: number }, db: PrismaTx = prisma) {
     const section = await db.courseSection.findUnique({
       where: { id, courseId },
       select: { id: true },
@@ -189,10 +189,8 @@ export const courseSectionRepo = {
     const lessons = await db.sectionItem.count({
       where: {
         sectionId: id,
-        type: "LESSON",
         publishedAt: { not: null },
         removedAt: null,
-        lesson: { isNot: null },
       },
     });
 

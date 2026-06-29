@@ -21,6 +21,7 @@ export const AUTH = Object.freeze({
     USER: "user",
     INVOICE: "invoice",
     ORDER: "order",
+    FORUM: "forum",
   },
 } as const);
 

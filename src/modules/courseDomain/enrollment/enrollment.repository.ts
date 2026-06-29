@@ -77,7 +77,7 @@ export default {
         ON c.id = e."courseId"
       LEFT JOIN "course_meta_approved" ma
         ON ma."courseId" = c.id
-      LEFT JOIN "lesson_progress" lp
+      LEFT JOIN "learn_progress" lp
         ON lp."enrollmentId" = e.id
       WHERE
         e."userId" = ${userId}

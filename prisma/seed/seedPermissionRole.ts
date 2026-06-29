@@ -43,22 +43,34 @@ export default async function seedPermissionRoles(prisma: PrismaClient) {
         resource: AUTH.RESOURCES.ORDER,
         scope: AUTH.SCOPES.OWN,
       },
+      {
+        action: AUTH.ACTIONS.VIEW,
+        resource: AUTH.RESOURCES.FORUM,
+        scope: AUTH.SCOPES.OWN,
+      },
+      {
+        action: AUTH.ACTIONS.CREATE,
+        resource: AUTH.RESOURCES.FORUM,
+        scope: AUTH.SCOPES.OWN,
+      },
     ],
 
-    [AUTH.ROLES.LECTURER]: [AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.DELETE].map(
-      action => ({
+    [AUTH.ROLES.LECTURER]: [AUTH.RESOURCES.COURSE, AUTH.RESOURCES.FORUM].flatMap(resource =>
+      [AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.DELETE].map(action => ({
         action,
-        resource: AUTH.RESOURCES.COURSE,
+        resource,
         scope: AUTH.SCOPES.OWN,
-      }),
+      })),
     ),
     // course (global)
     [AUTH.ROLES.ADMIN]: [
-      ...[AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.PUBLISH].map(action => ({
-        action,
-        resource: AUTH.RESOURCES.COURSE,
-        scope: AUTH.SCOPES.GLOBAL,
-      })),
+      ...[AUTH.RESOURCES.COURSE, AUTH.RESOURCES.FORUM].flatMap(resource =>
+        [AUTH.ACTIONS.VIEW, AUTH.ACTIONS.CREATE, AUTH.ACTIONS.EDIT, AUTH.ACTIONS.PUBLISH].map(action => ({
+          action,
+          resource,
+          scope: AUTH.SCOPES.GLOBAL,
+        })),
+      ),
 
       {
         action: AUTH.ACTIONS.MANAGE,

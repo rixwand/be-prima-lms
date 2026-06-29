@@ -58,6 +58,12 @@ enum SectionItemType {
   FORUM
 }
 
+enum QuizAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  ABANDONED
+}
+
 /* =========================
    USER & AUTH
 ========================= */
@@ -81,11 +87,13 @@ model User {
   enrollments   Enrollment[]
   forumThreads       ForumThread[]
   forumThreadsReply  ForumThreadReply[]
-
-  @@map("users")
+  forumThreadsReplyDeleted  ForumThreadReply[] @relation("ReplyDeletedBy")
   activationTokens ActivationToken[]
   refreshSessions RefreshSession[]
   notifications Notifications[]
+  quizAttempts  QuizAttempt[]
+
+  @@map("users")
 }
 
 model Role {
@@ -390,13 +398,18 @@ model Quiz {
   id          Int @id @default(autoincrement())
 
   description String @db.Text
-  
+  topics      String[]
+  passingScorePercent Int @db.SmallInt @default(80)
+
   sectionItemId Int @unique
   sectionItem SectionItem @relation(fields: [sectionItemId], references: [id])
 
+  publishedVersion Int @default(0)
   publishedData Json?
 
   questions   QuizQuestion[]
+  attempts    QuizAttempt[]     
+  snapshot    QuizSnapshot[]
   @@map("quiz")
 }
 
@@ -408,8 +421,8 @@ model QuizQuestion {
   question    String @db.Text
   position    Int
   multipleAnswer Boolean @default(false)
-  estimatedTimesSecond Int @default(0)
-  points      Int @default(1)
+  estimatedTimesSecond Int @default(60)
+  points      Int @default(5)
 
   options     QuizOption[]
   @@unique([quizId, position])
@@ -427,6 +440,82 @@ model QuizOption {
   position    Int
   @@unique([questionId, position])
   @@map("quiz_options")
+}
+
+model QuizSnapshot {
+  id Int @id @default(autoincrement())
+
+  quizId Int
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  publishedVersion Int
+
+  data Json
+
+  createdAt DateTime @default(now())
+
+  attempts QuizAttempt[]
+
+  @@unique([quizId, publishedVersion])
+  @@index([quizId])
+
+  @@map("quiz_snapshots")
+}
+
+model QuizAttempt {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  quizId Int
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  snapshotId Int
+  snapshot QuizSnapshot @relation(fields: [snapshotId], references: [id])
+
+  attemptNumber Int
+
+  status QuizAttemptStatus @default(IN_PROGRESS)
+
+  score Int @default(0)
+  totalPoints Int
+  percentage Int @default(0) @db.SmallInt
+
+  passed Boolean @default(false)
+
+  startedAt DateTime @default(now())
+  submittedAt DateTime?
+
+  timeSpentSecond Int @default(0)
+
+  answers QuizAttemptAnswer[]
+
+  @@unique([userId, quizId, attemptNumber])
+
+  @@index([userId, quizId])
+  @@index([snapshotId])
+
+  @@map("quiz_attempts")
+}
+
+model QuizAttemptAnswer {
+  id Int @id @default(autoincrement())
+
+  attemptId Int
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  snapshotQuestionId Int
+
+  selectedOptionIds Int[]
+
+  correctOptionIds Int[]
+
+  earnedPoints Int
+
+  @@unique([attemptId, snapshotQuestionId])
+
+  @@map("quiz_attempt_answers")
 }
 
 model Lesson {
@@ -459,6 +548,7 @@ model ForumThread {
   id            Int @id @default(autoincrement())
 
   title         String
+  slug          String
   content       Json?
 
   forumId       Int
@@ -466,6 +556,7 @@ model ForumThread {
 
   authorId      Int
   author        User    @relation(fields: [authorId], references: [id])
+  replies       ForumThreadReply[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime @updatedAt
@@ -474,15 +565,30 @@ model ForumThread {
 }
 
 model ForumThreadReply {
-  id            Int @id @default(autoincrement())
+  id        Int @id @default(autoincrement())
 
-  content       Json
+  content   Json
 
-  authorId      Int
-  author        User    @relation(fields: [authorId], references: [id])
+  authorId  Int
+  author    User @relation(fields: [authorId], references: [id])
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime @updatedAt
+  threadId  Int
+  thread    ForumThread @relation(fields: [threadId], references: [id])
+
+  parentId  Int?
+  parent    ForumThreadReply? @relation("ReplyChildren", fields: [parentId], references: [id])
+  children  ForumThreadReply[] @relation("ReplyChildren")
+
+  deletedAt   DateTime?
+  deletedById Int?
+  deletedBy   User? @relation("ReplyDeletedBy", fields: [deletedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([threadId])
+  @@index([parentId])
+
   @@map("forum_thread_replies")
 }
 
@@ -582,7 +688,7 @@ model LearnProgress {
   @@index([enrollmentId])
   @@index([enrollmentId, status])
   @@unique([sectionItemId, enrollmentId])
-  @@map("lesson_progress")
+  @@map("learn_progress")
 }
 
 model Invoice {

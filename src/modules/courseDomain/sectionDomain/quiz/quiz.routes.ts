@@ -24,9 +24,16 @@ quizRoutes.post(
 
 quizRoutes.get(
   "/",
-  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
+  requirePermission(AUTH.ACTIONS.VIEW, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
   requireHierarcy("sectionItem"),
   quizController.get,
+);
+
+quizRoutes.delete(
+  "/question/deleteMany",
+  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
+  requireHierarcy("sectionItem"),
+  quizController.deleteManyQuestions,
 );
 
 quizRoutes.delete(
@@ -36,10 +43,4 @@ quizRoutes.delete(
   quizController.deleteQuestion,
 );
 
-quizRoutes.delete(
-  "/question/deleteMany",
-  requirePermission(AUTH.ACTIONS.EDIT, AUTH.RESOURCES.COURSE, { scope: [AUTH.SCOPES.OWN, AUTH.SCOPES.GLOBAL] }),
-  requireHierarcy("sectionItem"),
-  quizController.deleteQuestion,
-);
 export default quizRoutes;

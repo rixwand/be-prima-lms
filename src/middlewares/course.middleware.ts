@@ -221,4 +221,86 @@ export const requireHierarcy = (level: Level) => async (req: Request, res: Respo
   }
 };
 
+export const requireCourseForumAccess = async (req: Request, res: Response, next: NextFunction) => {
+  const isAdmin = req.authz?.scopes.includes(AUTH.SCOPES.GLOBAL);
+
+  try {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+
+    const userId = req.user.id;
+    const courseId = (await validateIdParams(req.params.courseId)).id;
+    const sectionId = (await validateIdParams(req.params.sectionId)).id;
+    const itemId = (await validateIdParams(req.params.itemId)).id;
+
+    const sectionItem = await prisma.sectionItem.findFirst({
+      where: {
+        id: itemId,
+        type: "FORUM",
+        section: {
+          id: sectionId,
+          course: {
+            id: courseId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        sectionId: true,
+        publishedAt: true,
+        section: {
+          select: {
+            id: true,
+            courseId: true,
+            publishedAt: true,
+            course: {
+              select: {
+                id: true,
+                ownerId: true,
+                publishedAt: true,
+                takenDownAt: true,
+                publishRequest: { select: { status: true } },
+                enrollments: {
+                  where: { userId },
+                  select: { id: true },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!sectionItem) return notFound(res, "Forum not found in this section/course");
+
+    const course = sectionItem.section.course;
+    const hasAccess = isAdmin || course.ownerId === userId || course.enrollments.length > 0;
+
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    req.sectionItem = {
+      id: sectionItem.id,
+      sectionId: sectionItem.sectionId,
+      publishedAt: sectionItem.publishedAt,
+    };
+    req.section = {
+      id: sectionItem.section.id,
+      courseId: sectionItem.section.courseId,
+      publishedAt: sectionItem.section.publishedAt,
+    };
+    req.course = {
+      id: course.id,
+      ownerId: course.ownerId,
+      publishedAt: course.publishedAt,
+      status: getCourseStatus(course),
+    };
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
 const notFound = (res: any, msg: string) => res.status(404).json({ error: msg });

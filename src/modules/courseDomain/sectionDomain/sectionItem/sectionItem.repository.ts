@@ -35,30 +35,6 @@ export const sectionItemRepo = {
     return db ? createRows(db) : withTransaction(createRows);
   },
 
-  async findSectionItemBridgeByEntityId(
-    { sectionId, entityId }: { sectionId: number; entityId: number },
-    db: PrismaTx = prisma,
-  ) {
-    const row = await db.sectionItem.findFirst({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { is: { id: entityId } },
-      },
-      select: {
-        id: true,
-        sectionId: true,
-        publishedAt: true,
-        lesson: {
-          select: { id: true },
-        },
-      },
-    });
-
-    if (!row?.lesson) return null;
-    return { id: row.id, sectionId: row.sectionId, entityId: row.lesson.id, publishedAt: row.publishedAt };
-  },
-
   async update(
     id: number,
     data: {
@@ -86,74 +62,6 @@ export const sectionItemRepo = {
       data,
     });
   },
-
-  async findSectionItemByEntityId(
-    {
-      sectionId,
-      entityId,
-    }: {
-      sectionId: number;
-      entityId: number;
-    },
-    db: PrismaTx = prisma,
-  ) {
-    const row = await db.sectionItem.findFirst({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { is: { id: entityId } },
-      },
-      select: {
-        id: true,
-        sectionId: true,
-        position: true,
-        slug: true,
-        title: true,
-        durationSec: true,
-        isPreview: true,
-        publishedAt: true,
-        removedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        lesson: {
-          select: {
-            id: true,
-            summary: true,
-            contentDraft: true,
-            contentLive: true,
-          },
-        },
-      },
-    });
-
-    if (!row?.lesson) return null;
-    return {
-      ...row,
-      entity: row.lesson,
-      lesson: undefined,
-    };
-  },
-
-  async findEntityContentBySection(
-    { sectionId, entityId }: { sectionId: number; entityId: number },
-    db: PrismaTx = prisma,
-  ) {
-    const row = await db.sectionItem.findFirst({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { is: { id: entityId } },
-      },
-      select: {
-        publishedAt: true,
-        lesson: true,
-      },
-    });
-
-    if (!row?.lesson) return null;
-    return { ...row.lesson, publishedAt: row.publishedAt };
-  },
-
   async listSectionItemsInSection(sectionId: number, db: PrismaTx = prisma) {
     const rows = await db.sectionItem.findMany({
       where: {
@@ -193,56 +101,6 @@ export const sectionItemRepo = {
     }));
   },
 
-  async listEntityPositionsInSection(sectionId: number, db: PrismaTx = prisma): Promise<EntityPositionRow[]> {
-    const rows = await db.sectionItem.findMany({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        removedAt: null,
-        lesson: { isNot: null },
-      },
-      select: {
-        position: true,
-        lesson: {
-          select: { id: true },
-        },
-      },
-      orderBy: { position: "asc" },
-    });
-
-    const data: EntityPositionRow[] = [];
-    for (const row of rows) {
-      if (!row.lesson) continue;
-      data.push({ id: row.lesson.id, position: row.position });
-    }
-    return data;
-  },
-
-  async listEntityIdsInSection(
-    { sectionId, entityIds }: { sectionId: number; entityIds: number[] },
-    db: PrismaTx = prisma,
-  ) {
-    const rows = await db.sectionItem.findMany({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { is: { id: { in: entityIds } } },
-      },
-      select: {
-        lesson: {
-          select: { id: true },
-        },
-      },
-    });
-
-    const ids: number[] = [];
-    for (const row of rows) {
-      if (!row.lesson) continue;
-      ids.push(row.lesson.id);
-    }
-    return ids;
-  },
-
   async delete(ids: number[], sectionId: number, db: PrismaTx = prisma) {
     return db.sectionItem.deleteMany({
       where: {
@@ -251,23 +109,6 @@ export const sectionItemRepo = {
         sectionId,
       },
     });
-  },
-
-  async updateEntityPositionsInSection(
-    sectionId: number,
-    items: { id: number; position: number }[],
-    db: PrismaTx = prisma,
-  ) {
-    for (const item of items) {
-      await db.sectionItem.updateMany({
-        where: {
-          sectionId,
-          type: LESSON_TYPE,
-          lesson: { is: { id: item.id } },
-        },
-        data: { position: item.position },
-      });
-    }
   },
 
   async listSectionItemPositions(sectionId: number, db: PrismaTx = prisma): Promise<SectionItemPositionRow[]> {
@@ -335,96 +176,5 @@ export const sectionItemRepo = {
         data: { position: item.position },
       });
     }
-  },
-
-  async findSectionItemHierarchyByEntityId({
-    courseId,
-    sectionId,
-    entityId,
-    ownerId,
-  }: {
-    courseId: number;
-    sectionId: number;
-    entityId: number;
-    ownerId?: number;
-  }) {
-    const row = await prisma.sectionItem.findFirst({
-      where: {
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { is: { id: entityId } },
-        section: { course: { id: courseId, ...(ownerId ? { ownerId } : {}) } },
-      },
-      select: {
-        sectionId: true,
-        publishedAt: true,
-        lesson: {
-          select: {
-            id: true,
-          },
-        },
-        section: {
-          select: {
-            id: true,
-            courseId: true,
-            course: { select: { id: true, ownerId: true, publishedAt: true } },
-            publishedAt: true,
-          },
-        },
-      },
-    });
-
-    if (!row?.lesson) return null;
-    return {
-      entity: { id: row.lesson.id, publishedAt: row.publishedAt },
-      sectionId: row.sectionId,
-      section: row.section,
-    };
-  },
-
-  async findSectionItemHierarchyByItemId({
-    courseId,
-    sectionId,
-    itemId,
-    ownerId,
-  }: {
-    courseId: number;
-    sectionId: number;
-    itemId: number;
-    ownerId?: number;
-  }) {
-    const row = await prisma.sectionItem.findFirst({
-      where: {
-        id: itemId,
-        sectionId,
-        type: LESSON_TYPE,
-        lesson: { isNot: null },
-        section: { course: { id: courseId, ...(ownerId ? { ownerId } : {}) } },
-      },
-      select: {
-        sectionId: true,
-        publishedAt: true,
-        lesson: {
-          select: {
-            id: true,
-          },
-        },
-        section: {
-          select: {
-            id: true,
-            courseId: true,
-            course: { select: { id: true, ownerId: true, publishedAt: true } },
-            publishedAt: true,
-          },
-        },
-      },
-    });
-
-    if (!row?.lesson) return null;
-    return {
-      entity: { id: row.lesson.id, publishedAt: row.publishedAt },
-      sectionId: row.sectionId,
-      section: row.section,
-    };
   },
 };

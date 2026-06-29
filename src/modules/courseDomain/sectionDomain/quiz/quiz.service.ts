@@ -93,11 +93,13 @@ export default {
     const quiz = await quizRepository.findQuizBySectionItemId(sectionItemId, undefined, extTx);
     if (!quiz) throw new ApiError(404, "Quiz not found");
     const executor = async (tx: PrismaTransaction) => {
-      if (updateQuiz.description) {
+      if (updateQuiz.description || updateQuiz.topics || updateQuiz.passingScorePercent) {
         await quizRepository.update(
           sectionItemId,
           {
+            passingScorePercent: updateQuiz.passingScorePercent,
             description: updateQuiz.description,
+            topics: updateQuiz.topics,
           },
           tx,
         );
@@ -163,24 +165,25 @@ export default {
       console.log(updateQuiz, " update quiz data");
       if (updateQuiz) {
         const res = await this.update(updateQuiz, sectionItemId, tx);
-        console.log(res);
       }
       const data = await quizRepository.findQuizBySectionItemId(
         sectionItemId,
         {
           include: {
             questions: {
-              omit: { quizId: true, id: true },
-              include: { options: { omit: { id: true, questionId: true } } },
+              omit: { quizId: true },
+              include: { options: { omit: { questionId: true }, orderBy: { position: "asc" } } },
+              orderBy: { position: "asc" },
             },
           },
-          omit: { id: true, sectionItemId: true },
+          omit: { sectionItemId: true },
         },
         tx,
       );
       if (!data) throw new ApiError(404, "Quiz not found");
       const { publishedData, ...payload } = data;
-      console.log(JSON.stringify(payload, null, 2), " Published payload");
+      if (payload.questions.length < 1 || payload.description.length < 1)
+        throw new ApiError(400, "Cannot publish with empty question or empty description");
       if (isDeepStrictEqual(publishedData, payload)) return "Content live is already up to date";
       await quizRepository.update(
         sectionItemId,

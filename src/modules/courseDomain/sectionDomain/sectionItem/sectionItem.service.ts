@@ -51,7 +51,11 @@ export const sectionItemService = {
           ...(!content
             ? {}
             : item.type == "LESSON"
-              ? { lesson: { create: { contentDraft: content, contentLive: comingSoonLesson, summary: summary ?? null } } }
+              ? {
+                  lesson: {
+                    create: { contentDraft: content, contentLive: comingSoonLesson, summary: summary ?? null },
+                  },
+                }
               : item.type == "QUIZ"
                 ? {
                     quiz: { create: { description: "" } },
